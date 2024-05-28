@@ -9,11 +9,7 @@ Created on Tue May 28 00:19:31 2024
 import os
 import numpy as np
 import scipy.io as sio
-
-# Function placeholder for SR_240222_cal_allob
-def SR_240222_cal_allob(no_obj, masks, mask_range):
-    # This function needs to be defined with appropriate logic
-    pass
+import functions.SR_240222_cal_allob as SR_240222_cal_allob
 
 # Initialize variables
 pos = 'Pos0_2'
