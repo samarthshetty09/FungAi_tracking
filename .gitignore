@@ -3,3 +3,5 @@ __pycache__
 *untitled*
 toy_data
 cache
+*.mat
+*.DS_Store
