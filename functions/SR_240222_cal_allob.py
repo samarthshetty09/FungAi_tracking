@@ -10,20 +10,18 @@ import matplotlib.pyplot as plt
 import imageio
 
 def cal_allob(ccel, TETC, rang):
-    # Initialize all_obj with zeros
-    all_obj = np.zeros((ccel, len(TETC)))
-    
-    # Iterate over each cell index
-    for iv in range(ccel):
+    # Initialize the all_obj array with zeros
+    all_obj = np.zeros((ccel, len(TETC[0])))
+
+    for iv in range(0, ccel):  # Adjusted to 1-based index
         for its in rang:
-            # Check if TETC[its] is not empty
-            if TETC[its].size != 0:
-                # Count the occurrences of iv (iv+1 in MATLAB is iv in Python because of zero indexing)
-                all_obj[iv, its] = np.sum(TETC[its] == (iv + 1))
+            if TETC[0][its] is not None:  # Check if the array is not None and not empty
+                all_obj[iv, its] = np.sum(TETC[0][its] == iv)  # Adjusted for 1-based index logic
             else:
                 all_obj[iv, its] = -1
-    
+
     return all_obj
+
 
 
 def main():

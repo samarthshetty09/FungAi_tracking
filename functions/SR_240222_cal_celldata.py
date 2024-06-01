@@ -12,36 +12,26 @@ import matplotlib.pyplot as plt
 #import imageio
 from PIL import Image
 
+import numpy as np
+
 def cal_celldata(all_obj, ccel):
-    # Initialize cell_data with zeros, and 5 columns for the data mentioned
     cell_data = np.zeros((ccel, 5))
-    
+
     for iv in range(ccel):
-        # Find first and last occurrence where all_obj[iv, :] > 0
-        first_occurrence = np.where(all_obj[iv, :] > 0)[0]
-        if first_occurrence.size > 0:
-            cell_data[iv, 0] = first_occurrence[0] + 1  # +1 to match MATLAB's 1-based indexing
-        else:
-            cell_data[iv, 0] = np.nan  # Handle case where there is no positive occurrence
+        first_occurrence = np.argmax(all_obj[iv, :] > 0)
+        last_occurrence = len(all_obj[iv, :]) - np.argmax((all_obj[iv, :][::-1] > 0)) - 1
         
-        last_occurrence = np.where(all_obj[iv, :] > 0)[0]
-        if last_occurrence.size > 0:
-            cell_data[iv, 1] = last_occurrence[-1] + 1  # +1 to match MATLAB's 1-based indexing
-        else:
-            cell_data[iv, 1] = np.nan  # Handle case where there is no positive occurrence
-    
+        cell_data[iv, 0] = first_occurrence  # 1st occurrence
+        cell_data[iv, 1] = last_occurrence   # Last occurrence
+        
     for iv in range(ccel):
-        if not np.isnan(cell_data[iv, 0]) and not np.isnan(cell_data[iv, 1]):
-            cell_data[iv, 2] = cell_data[iv, 1] - cell_data[iv, 0] + 1
-            # Convert MATLAB's 1-based to Python's 0-based index for slicing
-            aa1 = all_obj[iv, :]
-            aa2 = aa1[int(cell_data[iv, 0] - 1):int(cell_data[iv, 1])]
-            aa3 = np.where(aa2 == 0)[0]
-            cell_data[iv, 3] = len(aa3)  # Number of times it disappears
-            cell_data[iv, 4] = (cell_data[iv, 3] * 100) / cell_data[iv, 2]  # Percentage of times it disappears
-        else:
-            cell_data[iv, 2:] = np.nan  # Handle cases with no occurrences
-    
+        cell_data[iv, 2] = cell_data[iv, 1] - cell_data[iv, 0] + 1  # Times the cell appears
+        aa1 = all_obj[iv, :]
+        aa2 = aa1[int(cell_data[iv, 0]):int(cell_data[iv, 1]) + 1]
+        aa3 = np.where(aa2 == 0)[0]
+        cell_data[iv, 3] = len(aa3)  # Number of times it disappears between 1st and last occurrence
+        cell_data[iv, 4] = (cell_data[iv, 3] * 100) / cell_data[iv, 2]  # Percentage of times the cell disappears
+
     return cell_data
 
 
