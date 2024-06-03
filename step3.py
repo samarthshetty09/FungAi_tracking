@@ -10,14 +10,14 @@ import numpy as np
 import scipy.io as sio
 from skimage.io import imread
 from skimage.morphology import skeletonize
-from functions.SR_240222_cal_allob import SR_240222_cal_allob
-from functions.SR_240222_cal_celldata import SR_240222_cal_celldata 
+from functions.SR_240222_cal_allob import cal_allob
+from functions.SR_240222_cal_celldata import cal_celldata 
 from scipy.stats import mode
 
 # Define thresholds and parameters
 pos = 'Pos0_2'
-path = f'E:\\SR_Tracking\\toy_data\\{pos}\\'
-sav_path = 'E:\\SR_Tracking\\toy_data\\Tracks\\'
+path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/{pos}/'
+sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res'
 shock_period = [122, 134]
 
 # Load image file names
@@ -29,184 +29,205 @@ sorted_numbers = np.array(file_numbers)[sorted_indices]
 mat_masks_path = [os.path.join(path, file_names[i]) for i in sorted_indices]
 
 # Read images
-mat_masks = [imread(mat_masks_path[i]) for i in range(len(file_names))]
-mat_masks = [mat_masks[i] if i in sorted_numbers else np.zeros_like(mat_masks[0], dtype=np.uint16) for i in range(max(sorted_numbers) + 1)]
+mat_masks = [None] * (sorted_numbers[-1] + 1)
+for i, img_path in enumerate(mat_masks_path):
+    mat_masks[sorted_numbers[i]] = imread(img_path)
 
-# Save all the valid mat masks in a variable called mat_masks
-for i in range(min(sorted_numbers) + 1, len(mat_masks)):
+for i in range(min(sorted_numbers), len(mat_masks)):
     if mat_masks[i] is None:
-        mat_masks[i] = np.zeros_like(mat_masks[min(sorted_numbers) + 1], dtype=np.uint16)
+        mat_masks[i] = np.zeros_like(mat_masks[min(sorted_numbers)], dtype=np.uint16)
 
-# Remove shock induced timepoints
+# Remove shock-induced timepoints
 mat_masks_original = mat_masks.copy()
+for start, end in [shock_period]:
+    for i in range(start, end + 1):
+        mat_masks[i] = None
 
-if shock_period:
-    for start, end in shock_period:
-        for i in range(start, end + 1):
-            mat_masks[i] = None
+start = 0
+for its in range(len(mat_masks)):
+    if mat_masks[its] is not None and np.sum(mat_masks[its]) > 0:
+        start = its
+        break
 
-# Find the first non-empty mask
-start = next((i for i, mask in enumerate(mat_masks) if mask is not None and np.sum(mask) > 0), 0)
-
-# Tracking all the detections
+# Tracking all detections
 if start != 0:
     rang = range(start, len(mat_masks))
     I2 = mat_masks[start]
-    A = np.zeros_like(I2)
+    A = np.zeros_like(mat_masks[start])
 else:
     rang = range(len(mat_masks))
     I2 = mat_masks[0]
-    A = np.zeros_like(I2)
+    A = np.zeros_like(mat_masks[0])
 
 IS6 = np.zeros_like(I2)
-MATC = [np.zeros_like(I2) for _ in range(2 * len(mat_masks))]
+MATC = [None] * 2
+MATC[0] = [None] * len(mat_masks)
+MATC[1] = [None] * len(mat_masks)
 xx = start
+rang2 = rang
 ccel = 1
 
 while xx != 0:
-    for im_no in rang:
-        I2 = mat_masks[im_no] if ccel == 1 else MATC[2 * im_no]
+    for im_no in rang2:
+        I2 = mat_masks[im_no] if ccel == 1 else MATC[1][im_no]
         if I2 is None:
             continue
-
-        if im_no == min(rang):
-            ind1 = np.unique(I2)[1:]
-            I3A = (I2 == ind1[0])
+        if im_no == min(rang2):
+            ind1 = np.unique(I2)[1:]  # Exclude background
+            I3 = I2 == ind1[0]
+            I3A = I3
         else:
             I3A = IS6
 
-        I3A = skeletonize(I3A)
+        I3A = skeletonize(I3A > 0)
         I2A = I2
-        I3B = I3A * I2A
-        ind = mode(I3B[I3B != 0], axis=None)[0][0]
+        I3B = I3A.astype(np.uint16) * I2A.astype(np.uint16)
+        ind = mode(I3B[I3B != 0])[0]
 
         if ind == 0 and ccel == 1:
-            MATC[2 * im_no] = I2A
+            MATC[0][im_no] = I3B
+            MATC[1][im_no] = I2A
             continue
         elif ind == 0 and ccel != 1:
             continue
 
         pix = np.where(I2A == ind)
         pix0 = np.where(I2A != ind)
+
         I2A[pix] = ccel
         I2A[pix0] = 0
         IS6 = I2A
         I22 = np.zeros_like(I2)
         pix1 = np.where(IS6 == ccel)
         I2[pix1] = 0
-        pix2 = np.unique(I2)[1:]
+        pix2 = np.unique(I2)[1:]  # Exclude background
 
         if ccel == 1:
-            for ity in pix2:
-                pix4 = np.where(I2 == ity)
-                I22[pix4] = ity
-            MATC[2 * im_no] = IS6
+            for ity, p2 in enumerate(pix2):
+                pix4 = np.where(I2 == p2)
+                I22[pix4] = ity + 1
+            MATC[0][im_no] = IS6
         else:
-            if pix2.size > 0:
-                for ity in pix2:
-                    pix4 = np.where(I2 == ity)
-                    I22[pix4] = ity
+            if len(pix2) > 0:
+                for ity, p2 in enumerate(pix2):
+                    pix4 = np.where(I2 == p2)
+                    I22[pix4] = ity + 1
             else:
                 I22 = I2
-            IS61 = MATC[2 * im_no]
+            IS61 = MATC[0][im_no]
             IS61[pix] = ccel
-            MATC[2 * im_no] = IS61
+            MATC[0][im_no] = IS61.astype(np.uint16)
 
-        MATC[2 * im_no] = I22
+        MATC[1][im_no] = I22
 
-    xx = next((i for i in rang if MATC[2 * i] is not None and np.sum(MATC[2 * i]) > 0), 0)
+    xx = 0
+    for i in rang:
+        if MATC[1][i] is not None and np.sum(MATC[1][i]) > 0:
+            xx = i
+            break
     ccel += 1
+    rang2 = range(xx, len(mat_masks))
+    print(xx)
 
-ccel -= 1
+ccel -= 1  # number of cells tracked
 
-# Removing the shock induced points from rang
+# Removing the shock-induced points from rang
 rang3 = list(rang)
-if shock_period:
-    for start, end in shock_period:
-        rang3 = [i for i in rang3 if i < start or i > end]
+for start, end in [shock_period]:
+    for i in range(start, end + 1):
+        if i in rang3:
+            rang3.remove(i)
 
 # Correction Code
-all_obj = SR_240222_cal_allob(ccel, MATC[::2], rang)
-cell_data = SR_240222_cal_celldata(all_obj, ccel)
+all_obj = cal_allob(ccel, MATC, rang)
+cell_data = cal_celldata(all_obj, ccel)
 
 for iv in range(ccel):
-    if np.any(all_obj[iv, min(rang):shock_period[-1][1]] > 0):
-        if all_obj[iv, shock_period[-1][1] + 1] != 0:
-            for its in range(shock_period[-1][1] + 1, rang[-1] + 1):
+    if np.any(all_obj[iv, min(rang):shock_period[-1]] > 0):
+        if all_obj[iv, shock_period[-1] + 1] != 0:
+            for its in range(shock_period[-1] + 1, rang[-1] + 1):
                 if all_obj[iv, its] != -1:
-                    pix = np.where(MATC[2 * its] == iv)
-                    MATC[2 * its][pix] = 0
-                    all_obj[iv, its] = np.sum(MATC[2 * its] == iv)
+                    pix = np.where(MATC[0][its] == iv)
+                    MATC[0][its][pix] = 0
+                    all_obj[iv, its] = np.sum(MATC[0][its] == iv)
 
-cell_data = SR_240222_cal_celldata(all_obj, ccel)
+cell_data = cal_celldata(all_obj, ccel)
 
 k = 1
 cell_artifacts = []
 for iv in range(ccel):
     if cell_data[iv, 2] == 1 or cell_data[iv, 4] > 80:
-        cell_artifacts.append(iv)
+        cell_artifacts.append(iv + 1)
         k += 1
 
-all_ccel = range(1, ccel + 1)
+all_ccel = list(range(1, ccel + 1))
 
 if cell_artifacts:
-    cell_artifacts = np.unique(cell_artifacts)
+    cell_artifacts = list(set(cell_artifacts))
     for iv in cell_artifacts:
         for its in rang3:
-            pix = np.where(MATC[2 * its] == iv)
-            MATC[2 * its][pix] = 0
+            pix = np.where(MATC[0][its] == iv)
+            MATC[0][its][pix] = 0
 
 good_cells = sorted(set(all_ccel) - set(cell_artifacts))
 
-for iv in good_cells:
+for iv in range(len(good_cells)):
     for its in rang3:
-        pix = np.where(MATC[2 * its] == iv)
-        MATC[2 * its][pix] = iv
+        pix = np.where(MATC[0][its] == good_cells[iv])
+        MATC[0][its][pix] = iv + 1
 
 ccel = len(good_cells)
-all_obj = SR_240222_cal_allob(ccel, MATC[::2], rang)
-cell_data = SR_240222_cal_celldata(all_obj, ccel)
+all_obj = cal_allob(ccel, MATC, rang)
+cell_data = cal_celldata(all_obj, ccel)
 
 for iv in range(ccel):
     tp_data = {
-        iv: {
-            1: np.diff(np.where(all_obj[iv, :] > 0)),
-            2: np.where(all_obj[iv, :] > 0)
-        }
+        iv: [np.diff(np.where(all_obj[iv, :] > 0)[0]), np.where(all_obj[iv, :] > 0)[0]]
     }
-    a = np.where(tp_data[iv][1] > 10)
-    if a.size > 0:
-        if a[0] == tp_data[iv][1].size - 1:
-            pix = np.where(MATC[2 * tp_data[iv][2][a[0] + 1]] == iv)
-            MATC[2 * tp_data[iv][2][a[0] + 1]][pix] = 0
+    a = np.where(tp_data[iv][0] > 10)[0]
+    if len(a) > 0:
+        if a[0] == len(tp_data[iv][0]):
+            pix = np.where(MATC[0][tp_data[iv][1][a[0] + 1]] == iv)
+            MATC[0][tp_data[iv][1][a[0] + 1]][pix] = 0
         else:
-            for its in range(np.where(all_obj[iv, :] > 0)[0][0], tp_data[iv][2][a[0] + 1]):
-                pix = np.where(MATC[2 * its] == iv)
-                MATC[2 * its][pix] = 0
+            for its in range(np.where(all_obj[iv, :] > 0)[0][0], tp_data[iv][1][a[0] + 1] - 1):
+                pix = np.where(MATC[0][its] == iv)
+                MATC[0][its][pix] = 0
 
 for iv in range(ccel):
     for its in range(np.where(all_obj[iv, :] > 0)[0][0] + 1, np.where(all_obj[iv, :] > 0)[0][-1]):
         if all_obj[iv, its] == 0:
             prev = np.where(all_obj[iv, :its] > 0)[0][-1]
             all_obj[iv, its] = all_obj[iv, prev]
-            pix = np.where(MATC[2 * prev] == iv)
-            MATC[2 * its][pix] = iv
+            pix = np.where(MATC[0][prev] == iv)
+            MATC[0][its][pix] = iv
 
-all_obj = SR_240222_cal_allob(ccel, MATC[::2], rang)
-cell_data = SR_240222_cal_celldata(all_obj, ccel)
+all_obj = cal_allob(ccel, MATC, rang)
+cell_data = cal_celldata(all_obj, ccel)
 
 no_obj = ccel
-Matmasks = [MATC[2 * ita] for ita in rang]
+# in matlab the array size is 777 filled with values after 240th index, try increasing?
+Matmasks = [MATC[0][i] for i in rang]
 
-# Save the results
-sio.savemat(os.path.join(sav_path, f'{pos}_MAT_16_18_Track.mat'), {
-    'Matmasks': Matmasks,
-    'no_obj': no_obj,
-    'all_obj': all_obj,
-    'cell_data': cell_data,
-    'rang': rang,
-    'rang3': rang3,
-    'shock_period': shock_period,
-    'mat_masks_original': mat_masks_original,
-    'start': start
+def replace_none_with_empty_array(data):
+    if isinstance(data, list):
+        return [replace_none_with_empty_array(item) for item in data]
+    elif data is None:
+        return np.array([])
+    else:
+        return data
+    
+Matmasks = replace_none_with_empty_array(Matmasks)
+mat_masks_original = replace_none_with_empty_array(mat_masks_original)
+# Save results
+sio.savemat(f'{sav_path}{pos}_MAT_16_18_Track.mat', {
+    "Matmasks": Matmasks,
+    "no_obj": no_obj,
+    "all_obj": all_obj,
+    "cell_data": cell_data,
+    "rang": rang,
+    "rang3": rang3,
+    "shock_period": shock_period,
+    "mat_masks_original": mat_masks_original,
+    "start": start
 }, do_compression=True)
