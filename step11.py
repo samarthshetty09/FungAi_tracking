@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import h5py
 import scipy.io as sio
 from skimage.morphology import binary_erosion, binary_thick, label
 from skimage.transform import resize
@@ -11,8 +12,21 @@ import cv2  # OpenCV for image processing
 
 # Initialize variables
 pos = 'Pos0_2'
-path = os.path.join('E:', 'SR_Tracking', 'toy_data', pos, '')
-sav_path = os.path.join('E:', 'SR_Tracking', 'toy_data', 'Tracks', '')
+path = '/Users/samarth/Documents/MirandaLabs/tracking_algo/FungAi_tracking/Tracking_toydata_Tracks'  # Path to segment SpoSeg masks
+sav_path = '/Users/samarth/Documents/MirandaLabs/tracking_algo/FungAi_tracking/Tracking_toydata_Tracks'  # Path to save Tracks
+
+def load_mat(filename):
+    try:
+        return sio.loadmat(filename)
+    except NotImplementedError:
+        # Load using h5py for MATLAB v7.3 files
+        data = {}
+        with h5py.File(filename, 'r') as f:
+            for key in f.keys():
+                data[key] = np.array(f[key])
+        return data
+
+###
 
 # Load TET Tracks
 tet_track_path = os.path.join(sav_path, f'{pos}_TET_Track_DS')
