@@ -15,8 +15,8 @@ import scipy.io as sio
 
 # Define paths and parameters
 pos = 'Pos0_2'
-path = f'E:\\SR_Tracking\\toy_data\\{pos}\\'
-sav_path = 'E:\\SR_Tracking\\toy_data\\Tracks\\'
+path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/{pos}/'
+sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res'
 shock_period = [122, 134]
 
 # Load ART masks
