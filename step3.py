@@ -13,6 +13,7 @@ from skimage.morphology import skeletonize
 from functions.SR_240222_cal_allob import cal_allob
 from functions.SR_240222_cal_celldata import cal_celldata 
 from scipy.stats import mode
+import matplotlib.pyplot as plt
 
 # Define thresholds and parameters
 pos = 'Pos0_2'
@@ -50,6 +51,7 @@ for its in range(len(mat_masks)):
         break
 
 # Tracking all detections
+print("Tracking All Detections")
 if start != 0:
     rang = range(start, len(mat_masks))
     I2 = mat_masks[start]
@@ -69,20 +71,78 @@ ccel = 1
 
 while xx != 0:
     for im_no in rang2:
-        I2 = mat_masks[im_no] if ccel == 1 else MATC[1][im_no]
+        #I2 = mat_masks[im_no] if ccel == 1 else MATC[1][im_no]
+        if ccel == 1:
+            I2 = mat_masks[im_no]
+        else:
+            I2 = MATC[1][im_no]
+            
         if I2 is None:
             continue
+        
+        
+# =============================================================================
+#         plt.figure()
+#         plt.imshow(np.uint16(I2), cmap='gray')
+#         plt.title('I2')
+#         plt.show()
+# =============================================================================
+              
+        if(im_no < 280):
+            print(im_no, min(rang2))
+            
         if im_no == min(rang2):
             ind1 = np.unique(I2)[1:]  # Exclude background
             I3 = I2 == ind1[0]
             I3A = I3
         else:
             I3A = IS6
+# =============================================================================
+#             plt.figure()
+#             plt.imshow(np.uint16(I3A), cmap='gray')
+#             plt.title('I3A')
+#             plt.show()
+# =============================================================================
+                  
 
-        I3A = skeletonize(I3A > 0)
+        
+        I3A = skeletonize(I3A)
         I2A = I2
-        I3B = I3A.astype(np.uint16) * I2A.astype(np.uint16)
+        I3B = np.uint16(I3A) * np.uint16(I2A)
+        
+        """
+        plt.figure()
+        plt.imshow(np.uint16(I3A), cmap='gray')
+        plt.title('I3A')
+        plt.show()
+        """
+        
+        plt.figure()
+        plt.imshow(np.uint16(I3B), cmap='gray')
+        plt.title('I3B')
+        plt.show()
+        
+        """
+        plt.figure()
+        plt.imshow(np.uint16(I3B), cmap='gray')
+        plt.title('I3B')
+        plt.show()
+        """
+        
         ind = mode(I3B[I3B != 0])[0]
+        ind = 1
+        print(ind)
+
+# =============================================================================
+#         if I3B[I3B != 0].size == 0:
+#             if ccel == 1:
+#                 MATC[0][im_no] = I3B
+#                 MATC[1][im_no] = I2A
+#             continue
+# 
+#         ind = np.argmax(np.bincount(I3B[I3B != 0]))
+# =============================================================================
+
 
         if ind == 0 and ccel == 1:
             MATC[0][im_no] = I3B
@@ -91,34 +151,49 @@ while xx != 0:
         elif ind == 0 and ccel != 1:
             continue
 
-        pix = np.where(I2A == ind)
-        pix0 = np.where(I2A != ind)
+        pix = np.where(np.uint16(I2A == ind))
+        pix0 = np.where(np.uint16(I2A != ind))
 
         I2A[pix] = ccel
         I2A[pix0] = 0
-        IS6 = I2A
+        IS6 = np.copy(I2A)
+        
+        """
+        plt.figure()
+        plt.imshow(np.uint16(IS6), cmap='gray')
+        plt.title('IS6')
+        plt.show()
+        """
+        
         I22 = np.zeros_like(I2)
         pix1 = np.where(IS6 == ccel)
         I2[pix1] = 0
         pix2 = np.unique(I2)[1:]  # Exclude background
 
         if ccel == 1:
-            for ity, p2 in enumerate(pix2):
-                pix4 = np.where(I2 == p2)
-                I22[pix4] = ity + 1
+            for ity in pix2:
+                pix4 = np.where(I2 == ity)
+                I22[pix4] = ity
             MATC[0][im_no] = IS6
         else:
-            if len(pix2) > 0:
-                for ity, p2 in enumerate(pix2):
-                    pix4 = np.where(I2 == p2)
-                    I22[pix4] = ity + 1
+            if pix2.size > 0:
+                for ity in pix2:
+                    pix4 = np.where(I2 == ity)
+                    I22[pix4] = ity
             else:
                 I22 = I2
             IS61 = MATC[0][im_no]
             IS61[pix] = ccel
-            MATC[0][im_no] = IS61.astype(np.uint16)
+            MATC[0][im_no] = np.uint16(IS61)
 
         MATC[1][im_no] = I22
+        
+        """
+        plt.figure()
+        plt.imshow(np.uint16(IS6), cmap='gray')
+        plt.title('IS6')
+        plt.show()
+        """
 
     xx = 0
     for i in rang:

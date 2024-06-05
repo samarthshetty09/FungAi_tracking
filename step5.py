@@ -19,8 +19,8 @@ from skimage.morphology import thin
 
 
 #Global Variables
-input_images = r'E:\Miranda_Labs\tracking_algo\New_tracks'
-sav_path = r'E:\Miranda_Labs\tracking_algo\New_tracks\res'
+input_images = "/Users/samarth/Documents/MirandaLabs/New_tracks/"
+sav_path = "/Users/samarth/Documents/MirandaLabs/New_tracks/res/"
 pos = 'pos0_2'
 
 #Helper Functions
@@ -78,7 +78,7 @@ for it0 in range(1,len(mask_paths)):
     print("Number of dimensions in IS2:", IS2.ndim)
 
     IS2 = remove_artif(IS2)
-    display_image(IS2)
+    #display_image(IS2)
 
     IS2C = IS2
     IS1B = binar(IS1)
