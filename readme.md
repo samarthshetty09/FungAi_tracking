@@ -1,7 +1,7 @@
 
 ## Overview
 
-### This codebase the python equivalent translation of the matlab repository: [Life Cycle Tracking](https://github.com/MirandaLab/Full_Life_Cycle_tracking/tree/main)
+### Link to Matlab repository: [Life Cycle Tracking](https://github.com/MirandaLab/Full_Life_Cycle_tracking/tree/main)
 
 Time series images depicting full life cycles were first interpolated using RIFE. Segmentations were performed on the interpolated time series, composed of real and synthetic images, using a cellpose architecture containing the following pre-trained models:
 - **ProSeg**: For generalist segmentation.
