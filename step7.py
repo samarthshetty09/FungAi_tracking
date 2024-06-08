@@ -6,42 +6,94 @@ Created on Tue May 28 00:11:43 2024
 @author: samarth
 """
 import os
+import h5py
 import numpy as np
 import scipy.io as sio
 from skimage.morphology import thin
 from skimage.filters import threshold_otsu
 from shutil import copyfile
+import matplotlib.pyplot as plt
+from skimage.io import imshow
 
+def load_mat(filename):
+    try:
+        return sio.loadmat(filename)
+    except NotImplementedError:
+        # Load using h5py for MATLAB v7.3 files
+        data = {}
+        with h5py.File(filename, 'r') as f:
+            for key in f.keys():
+                data[key] = np.array(f[key])
+        return data
+
+
+# Define parameters
 pos = 'Pos0_2'
-path = os.path.join('E:', 'SR_Tracking', 'toy_data', pos, '')
-sav_path = os.path.join('E:', 'SR_Tracking', 'toy_data', 'Tracks', '')
+path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/tracks/'  # Path to segment SpoSeg masks
+sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/'  # Path to save Track
 
 # Removes the mating events from sposeg tracks based on the overlapping tracked indices 
 
-mat_track_path = os.path.join(sav_path, f'{pos}_MAT_16_18_Track1')
+mat_track_path = os.path.join(path)
 if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_track_path)):
-    file_list = [f for f in os.listdir(mat_track_path) if os.path.isfile(os.path.join(mat_track_path, f))]
+    file_list = [f for f in os.listdir(mat_track_path) if '_MAT_16_18_Track' in f]
+    file_list = sorted(file_list)
 
-    mat = sio.loadmat(os.path.join(sav_path, file_list[0]))
-
-    art_track_path = os.path.join(sav_path, f'{pos}_ART_Track')
+    mat = load_mat(os.path.join(path, file_list[2]))
+    
+    print("Keys in ART:", mat.keys())
+    
+    art_track_path = os.path.join(path)
     if any(os.path.isfile(os.path.join(art_track_path, f)) for f in os.listdir(art_track_path)):
-        file_list = [f for f in os.listdir(art_track_path) if os.path.isfile(os.path.join(art_track_path, f))]
-        art = sio.loadmat(os.path.join(sav_path, file_list[0]))
+        file_list = [f for f in os.listdir(art_track_path) if '_ART_Track' in f]
+        file_list = sorted(file_list)
+        art = load_mat(os.path.join(path, file_list[5]))
 
         Mask3 = art['Mask3']
+        all_obj = mat['all_obj']
         Matmasks = mat['Matmasks']
+        cell_data = mat['cell_data']
 
-        for iv in range(mat['no_obj'][0, 0]):
+        for iv in range(int(mat['no_obj'][0, 0])):
             indx_remov = []
             final_indx_remov = []
-            for its in range(mat['cell_data'][iv, 0], mat['cell_data'][iv, 1] + 1):  # check for 10 time points
-                M = Matmasks[0, its]
-                M0 = (M == iv + 1).astype(np.uint16)
-                A = Mask3[0, its]
+            for its in range(int(mat['cell_data'][0, iv]), int(mat['cell_data'][1, iv])):  # check for 10 time points
+                M = Matmasks[its, :, :]
+                
+# =============================================================================
+#                 plt.figure()
+#                 plt.imshow(M, cmap='gray')
+#                 plt.title('M')
+#                 plt.show()
+# =============================================================================
+                
+                M0 = (M == iv).astype(np.uint16)
+                A = Mask3[its, :, :]
                 M1 = M0 > threshold_otsu(M0)
-                M2 = thin(M1, max_iter=30)
+                
+# =============================================================================
+#                 plt.figure()
+#                 plt.imshow(M1, cmap='gray')
+#                 plt.title('M1')
+#                 plt.show()
+# =============================================================================
+                
+                M2 = thin(M1, 30)
+                
+# =============================================================================
+#                 plt.figure()
+#                 plt.imshow(M2, cmap='gray')
+#                 plt.title('M2')
+#                 plt.show()
+# =============================================================================
+                
                 M3 = A * M2
+                
+                plt.figure()
+                plt.imshow(np.uint16(M2), cmap='gray')
+                plt.title('M2')
+                plt.show()
+                
                 indx = np.unique(A[M3 != 0])
                 if indx.size > 0:
                     for itt2 in indx:
