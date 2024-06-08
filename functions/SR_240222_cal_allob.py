@@ -35,8 +35,8 @@ def main():
     cleaned_image = cal_allob(image, 2, 5);
 
     # Plot the original and cleaned images
-    plot_image(image, 'Original Image')
-    plot_image(cleaned_image, 'Cleaned Image')
+    #plot_image(image, 'Original Image')
+    #plot_image(cleaned_image, 'Cleaned Image')
 
     # Save the cleaned image
     output_path = 'cleaned_image.tif'  # Specify the output path
