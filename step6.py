@@ -10,16 +10,20 @@ from functions.SR_240222_cal_allob import cal_allob
 from functions.SR_240222_cal_celldata import cal_celldata
 import matplotlib.pyplot as plt
 
-def load_mat_v73(file_path):
-    data = {}
-    with h5py.File(file_path, 'r') as f:
-        for key in f.keys():
-            if isinstance(f[key], h5py.Dataset):
+def load_mat(filename):
+    try:
+        return sio.loadmat(filename)
+    except NotImplementedError:
+        # Load using h5py for MATLAB v7.3 files
+        data = {}
+        with h5py.File(filename, 'r') as f:
+            for key in f.keys():
                 data[key] = np.array(f[key])
-            elif isinstance(f[key], h5py.Group):
-                data[key] = {k: np.array(f[key][k]) for k in f[key].keys()}
-            elif isinstance(f[key], h5py.h5r.Reference):
-                data[key] = [np.array(f[h5py.h5r.dereference(ref, f)]) for ref in f[key]]
+        return data
+    
+def resolve_h5py_reference(data, f):
+    if isinstance(data, h5py.Reference):
+        return f[data][()]
     return data
 
 
@@ -39,13 +43,21 @@ def cal_allob1(ccel, TETC, rang):
 
 # Define parameters
 pos = 'Pos0_2'
-path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/tracks/'  # Path to segment SpoSeg masks
+path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Tracks2/'  # Path to segment SpoSeg masks
 sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/'  # Path to save Track
 
 # Load MAT Track data
 file_list = [f for f in os.listdir(path) if '_MAT_16_18_Track' in f]
-mat = load_mat_v73(os.path.join(path, file_list[2]))
-Matmasks = mat['Matmasks']
+file_list = sorted(file_list)
+mat = load_mat(os.path.join(path, file_list[0]))
+
+Matmasks = []
+with h5py.File(os.path.join(path, file_list[0]), 'r') as f:
+    for i in range(len(f['Matmasks'])):
+        tet_masks_refs = f['Matmasks'][i]
+        for ref in tet_masks_refs:
+            mask = resolve_h5py_reference(ref, f)
+            Matmasks.append(mask)
 
 # Extract variables from loaded data
 no_obj = int(mat['no_obj'][0])
@@ -56,19 +68,26 @@ if no_obj != 0:
 
     # Load ART Track data
     file_list = [f for f in os.listdir(path) if '_ART_Track' in f]
-    art = load_mat_v73(os.path.join(path, file_list[1]))
-    art_masks = art["Mask3"]
+    file_list = sorted(file_list)
+    art = load_mat(os.path.join(path, file_list[0]))
+    art_masks = []
+    with h5py.File(os.path.join(path, file_list[0]), 'r') as f:
+        for i in range(len(f['Mask3'])):
+            masks_refs = f['Mask3'][i]
+            for ref in masks_refs:
+                mask = resolve_h5py_reference(ref, f)
+                art_masks.append(mask)
     mat_artifacts = []
 
     # Resize MTrack to match ART masks
     for its in range(len(MTrack)):
-        if MTrack[its, : , :].size > 1:
-            MTrack[its,:,:] = resize(MTrack[its,:,:], art_masks[its,:,:].shape, order=0, preserve_range=True, anti_aliasing=False)
+        if MTrack[its].size > 2:
+            MTrack[its] = resize(MTrack[its], art_masks[its].shape, order=0, preserve_range=True, anti_aliasing=False)
 
     tp_end = len(art_masks)
     if len(MTrack) != tp_end:
-        for its in range(len(MTrack[its,:,:]), tp_end):
-            MTrack.append(np.zeros_like(MTrack[int(min(cell_data[:, 0])) - 1,:,:], dtype=np.uint16))
+        for its in range(len(MTrack[its]), tp_end):
+            MTrack.append(np.zeros_like(MTrack[int(min(cell_data[:, 0])) - 1], dtype=np.uint16))
 
     # Correcting mating tracks
     cor_data = np.zeros((3, no_obj))
@@ -77,19 +96,19 @@ if no_obj != 0:
     outlier_tps = [None] * no_obj
     good_tps = [None] * no_obj
     
-    for iv in range(no_obj):
-        print(iv)
 
     for iv in range(no_obj):
         int_range = range(int(cell_data[0, iv]) - 1, int(cell_data[1, iv]))  # Adjusting for 0-based indexing
         for its in int_range:
-            M = np.uint16(MTrack[its,:,:] == iv)
+            M = np.uint16(MTrack[its] == iv)
             
             
-            plt.figure()
-            plt.imshow(np.uint16(M), cmap='gray')
-            plt.title('M')
-            plt.show()
+# =============================================================================
+#             plt.figure()
+#             plt.imshow(np.uint16(M), cmap='gray')
+#             plt.title('M')
+#             plt.show()
+# =============================================================================
             
             
             size_cell[iv, its] = np.sum(M)
@@ -113,7 +132,7 @@ if no_obj != 0:
         while outlier:
             its = min(outlier)
             gtp = max([g for g in good if g < its], default=min([g for g in good if g > its], default=its))
-            A = art_masks[its,:,:]
+            A = art_masks[its]
             
 # =============================================================================
 #             plt.figure()
@@ -133,7 +152,7 @@ if no_obj != 0:
             
             indx = np.unique(A[M3 != 0])
             if indx.size > 0:
-                X1 = np.zeros_like(MTrack[its,:,:])
+                X1 = np.zeros_like(MTrack[its])
                 for itt2 in indx:
                     if np.sum(M3 == itt2) > 5:
                         X1[A == itt2] = 1
@@ -152,24 +171,24 @@ if no_obj != 0:
         if cell_data[1, iv] != tp_end:
             count = 0
             for its in range(int(cell_data[1, iv]), tp_end):
-                A = art_masks[its,:,:]
+                A = art_masks[its]
                 M1 = MTrack[its - 1] == (iv + 1)
                 M2 = thin(M1, 30)
                 M3 = A * M2
                 indx = np.unique(A[M3 != 0])
                 if indx.size > 0:
-                    X1 = np.zeros_like(MTrack[its,:,:])
+                    X1 = np.zeros_like(MTrack[its])
                     for itt2 in indx:
                         if np.sum(M3 == itt2) > 5:
                             X1[A == itt2] = 1
                     if abs(np.sum(X1) - cor_data[0, iv]) > 2 * cor_data[1, iv]:
                         count += 1
-                        MTrack[its,:,:][MTrack[its - 1,:,:] == (iv + 1)] = iv + 1
+                        MTrack[its][MTrack[its - 1] == (iv + 1)] = iv + 1
                     else:
-                        MTrack[its,:,:][X1 == 1] = iv + 1
+                        MTrack[its][X1 == 1] = iv + 1
                 else:
                     count += 1
-                    MTrack[its,:,:][MTrack[its - 1,:,:] == (iv + 1)] = iv + 1
+                    MTrack[its][MTrack[its - 1] == (iv + 1)] = iv + 1
             if count / (tp_end - cell_data[iv, 0]) > 0.8:
                 mat_artifacts.append(iv + 1)
 
@@ -179,11 +198,11 @@ if no_obj != 0:
         mat_artifacts = sorted(set(mat_artifacts))
         for iv in mat_artifacts:
             for its in range(len(MTrack)):
-                MTrack[its,:,:][MTrack[its,:,:] == iv] = 0
+                MTrack[its][MTrack[its] == iv] = 0
         good_cells = sorted(set(all_ccel) - set(mat_artifacts))
         for iv in range(len(good_cells)):
             for its in range(len(MTrack)):
-                MTrack[its,:,:][MTrack[its,:,:] == good_cells[iv]] = iv + 1
+                MTrack[its][MTrack[its] == good_cells[iv]] = iv + 1
         no_obj = len(good_cells)
         
         
