@@ -9,7 +9,7 @@ import os
 import h5py
 import numpy as np
 import scipy.io as sio
-from skimage.morphology import thin
+from skimage.morphology import thin, skeletonize
 from skimage.filters import threshold_otsu
 from shutil import copyfile
 import matplotlib.pyplot as plt
@@ -100,20 +100,20 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
                 A = Mask3[its].T
                 M1 = binar(M0)
                 
-                plt.figure()
-                plt.imshow(M1, cmap='gray')
-                plt.title('M1')
-                plt.show()
-                
-                #M2 = thin(M1, 30)
-                M2 = thin(M1, 30).astype(np.uint16)
-                
 # =============================================================================
 #                 plt.figure()
-#                 plt.imshow(M2, cmap='gray')
-#                 plt.title('M2')
+#                 plt.imshow(M1, cmap='gray')
+#                 plt.title('M1')
 #                 plt.show()
 # =============================================================================
+                
+                #M2 = thin(M1, 30)
+                M2 = skeletonize(M1)
+                
+                plt.figure()
+                plt.imshow(M2, cmap='gray')
+                plt.title('M2')
+                plt.show()
                 
                 M3 = A * M2
             
