@@ -14,6 +14,7 @@ from skimage.filters import threshold_otsu
 from shutil import copyfile
 import matplotlib.pyplot as plt
 from skimage.io import imshow
+from functions.OAM_231216_bina import binar
 
 def load_mat(filename):
     try:
@@ -25,40 +26,68 @@ def load_mat(filename):
             for key in f.keys():
                 data[key] = np.array(f[key])
         return data
+    
+def resolve_h5py_reference(data, f):
+    if isinstance(data, h5py.Reference):
+        return f[data][()]
+    return data
 
 
 # Define parameters
 pos = 'Pos0_2'
-path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/tracks/'  # Path to segment SpoSeg masks
+path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Tracks2/'  # Path to segment SpoSeg masks
 sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/'  # Path to save Track
 
 # Removes the mating events from sposeg tracks based on the overlapping tracked indices 
 
+
+
 mat_track_path = os.path.join(path)
 if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_track_path)):
-    file_list = [f for f in os.listdir(mat_track_path) if '_MAT_16_18_Track' in f]
+    file_list = [f for f in os.listdir(mat_track_path) if '_MAT_16_18_Track1' in f]
     file_list = sorted(file_list)
 
-    mat = load_mat(os.path.join(path, file_list[2]))
+    mat = load_mat(os.path.join(path, file_list[0]))
     
-    print("Keys in ART:", mat.keys())
+    all_obj = mat['all_obj']
+    #Matmasks = mat['Matmasks']
+    cell_data = mat['cell_data']
+    
+    print("Keys in MAT:", mat.keys())
+    
+# =============================================================================
+#     with h5py.File(os.path.join(path, file_list[0]), 'r') as f:
+#         Matmasks = [resolve_h5py_reference(mask, f) for mask in Matmasks]
+# =============================================================================
+        
+    Matmasks = []
+    with h5py.File(os.path.join(path, file_list[0]), 'r') as f:
+        for i in range(len(f['Matmasks'])):
+            tet_masks_refs = f['Matmasks'][i]
+            for ref in tet_masks_refs:
+                mask = resolve_h5py_reference(ref, f)
+                Matmasks.append(mask)
     
     art_track_path = os.path.join(path)
     if any(os.path.isfile(os.path.join(art_track_path, f)) for f in os.listdir(art_track_path)):
         file_list = [f for f in os.listdir(art_track_path) if '_ART_Track' in f]
         file_list = sorted(file_list)
-        art = load_mat(os.path.join(path, file_list[5]))
-
-        Mask3 = art['Mask3']
-        all_obj = mat['all_obj']
-        Matmasks = mat['Matmasks']
-        cell_data = mat['cell_data']
-
+        art = load_mat(os.path.join(path, file_list[0]))
+        
+        Mask3 = []
+        with h5py.File(os.path.join(path, file_list[0]), 'r') as f:
+            for i in range(len(f['Mask3'])):
+                masks_refs = f['Mask3'][i]
+                for ref in masks_refs:
+                    mask = resolve_h5py_reference(ref, f)
+                    Mask3.append(mask)
+        
+        
         for iv in range(int(mat['no_obj'][0, 0])):
             indx_remov = []
             final_indx_remov = []
             for its in range(int(mat['cell_data'][0, iv]), int(mat['cell_data'][1, iv])):  # check for 10 time points
-                M = Matmasks[its, :, :]
+                M = Matmasks[its].T
                 
 # =============================================================================
 #                 plt.figure()
@@ -68,17 +97,16 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
 # =============================================================================
                 
                 M0 = (M == iv).astype(np.uint16)
-                A = Mask3[its, :, :]
-                M1 = M0 > threshold_otsu(M0)
+                A = Mask3[its].T
+                M1 = binar(M0)
                 
-# =============================================================================
-#                 plt.figure()
-#                 plt.imshow(M1, cmap='gray')
-#                 plt.title('M1')
-#                 plt.show()
-# =============================================================================
+                plt.figure()
+                plt.imshow(M1, cmap='gray')
+                plt.title('M1')
+                plt.show()
                 
-                M2 = thin(M1, 30)
+                #M2 = thin(M1, 30)
+                M2 = thin(M1, 30).astype(np.uint16)
                 
 # =============================================================================
 #                 plt.figure()
@@ -88,11 +116,7 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
 # =============================================================================
                 
                 M3 = A * M2
-                
-                plt.figure()
-                plt.imshow(np.uint16(M2), cmap='gray')
-                plt.title('M2')
-                plt.show()
+            
                 
                 indx = np.unique(A[M3 != 0])
                 if indx.size > 0:
