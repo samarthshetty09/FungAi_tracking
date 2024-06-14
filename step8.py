@@ -13,6 +13,7 @@ import h5py
 from functions.SR_240222_cal_allob import cal_allob
 import matplotlib.pyplot as plt
 import seaborn as sns
+from functions.OAM_231216_bina import binar
 
 # Initialize variables
 # Define parameters
@@ -29,10 +30,10 @@ MATfiles = sorted(MATfiles)
 TETfiles = [f for f in os.listdir(path) if f.endswith('_TET_Track.mat')]
 TETfiles = sorted(TETfiles)
 
-st_inter = 150
-end_inter = 183
-last_tp = 282
-last_tp_int = 777
+st_inter = 150 #initial timepoint of interpolation
+end_inter = 183 #final timepoint of interpolation
+last_tp = 282 #number of phase images before interpolation
+last_tp_int = 777 #number of phase images after interpolation
 
 def load_mat(filename):
     try:
@@ -81,6 +82,16 @@ def process_art_tracks(files, last_tp, end_inter, st_inter, suffix):
         
         no_obj = data['no_obj'][0, 0]
         
+        
+        all_ob1 = cal_allob1(int(no_obj), Mask3, range(len(Mask3)))
+        
+        all_ob1 = binar(all_ob1)
+        plt.figure()
+        plt.imshow(all_ob1, cmap='gray')
+        plt.title('all_ob1')
+        plt.show()
+        
+        
         endi = len(Mask3) - (last_tp - end_inter)
         tr1 = Mask3[:st_inter-1]
         tr2 = Mask3[st_inter:endi-1]
@@ -98,15 +109,11 @@ def process_art_tracks(files, last_tp, end_inter, st_inter, suffix):
         
         all_ob = cal_allob1(int(no_obj), Mask3, range(len(Mask3)))
         
-        
-# =============================================================================
-#         plt.figure(figsize=(10, 8))
-#         sns.heatmap(all_ob, annot=True, fmt=".1f", cmap="viridis")
-#         plt.title('Heatmap of all_ob')
-#         plt.xlabel('Column index')
-#         plt.ylabel('Row index')
-#         plt.show()
-# =============================================================================
+        # all_ob = binar(all_ob)
+        # plt.figure()
+        # plt.imshow(all_ob, cmap='gray')
+        # plt.title('all_ob')
+        # plt.show()
         
         cell_artifacts = []
         cell_exists = np.zeros((2, all_ob.shape[0]))
@@ -134,6 +141,12 @@ def process_art_tracks(files, last_tp, end_inter, st_inter, suffix):
             for itt2 in range(all_ob.shape[0]):
                 cell_exists[0, itt2] = np.argmax(all_ob[itt2,:] > 0)
                 cell_exists[1, itt2] = len(all_ob[itt2, :]) - 1 - np.argmax(all_ob[itt2, ::-1] > 0)
+                
+        all_ob = binar(all_ob)
+        plt.figure()
+        plt.imshow(all_ob, cmap='gray')
+        plt.title('all_ob')
+        plt.show()
         
         sio.savemat(os.path.join(sav_path, new_art_name), {
             'Mask3': Mask3, 'all_ob': all_ob, 'ccell2': data['ccell2'], 
