@@ -239,23 +239,23 @@ if begin != 0:
     
     
     # Visualization
-    plt.figure(figsize=(10, 5))
+    # plt.figure(figsize=(10, 5))
 
-    plt.subplot(1, 2, 1)
-    plt.title('Distance Transform I4')
-    plt.imshow(I4, cmap='gray')
-    plt.colorbar()
+    # plt.subplot(1, 2, 1)
+    # plt.title('Distance Transform I4')
+    # plt.imshow(I4, cmap='gray')
+    # plt.colorbar()
     
     # Magnify a specific region, for example, (x_start, x_end, y_start, y_end)
     x_start, x_end = 60, 85  # Adjust these values as needed
     y_start, y_end = 115, 135  # Adjust these values as needed
     
-    plt.subplot(1, 2, 2)
-    plt.title('Magnified Region of I4')
-    plt.imshow(I4[y_start:y_end, x_start:x_end], cmap='gray')
-    plt.colorbar()
+    # plt.subplot(1, 2, 2)
+    # plt.title('Magnified Region of I4')
+    # plt.imshow(I4[y_start:y_end, x_start:x_end], cmap='gray')
+    # plt.colorbar()
     
-    plt.show()
+    # plt.show()
     
     I4 = I4.astype(np.uint16)
     # Ensure the markers are labeled and are of appropriate type
