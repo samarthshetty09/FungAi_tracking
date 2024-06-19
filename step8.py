@@ -142,6 +142,37 @@ def process_art_tracks(files, last_tp, end_inter, st_inter, suffix):
                 cell_exists[0, itt2] = np.argmax(all_ob[itt2,:] > 0)
                 cell_exists[1, itt2] = len(all_ob[itt2, :]) - 1 - np.argmax(all_ob[itt2, ::-1] > 0)
                 
+        #TODO! recreate remove cell artifacts once more to remove inturrupted time series.
+        
+        cell_artifacts = []
+        cell_exists = np.zeros((2, all_ob.shape[0]))
+        
+        for itt2 in range(all_ob.shape[0]):
+            if np.all(all_ob[itt2,:] == 0):
+                cell_artifacts.append(itt2)
+            else:
+                cell_exists[0, itt2] = np.argmax(all_ob[itt2,:] > 0)
+                cell_exists[1, itt2] = len(all_ob[itt2, :]) - 1 - np.argmax((all_ob[itt2,:][::-1] > 0))
+        
+        if cell_artifacts:
+            all_ccel = np.arange(1, no_obj + 1)
+            good_cells = np.setdiff1d(all_ccel, np.array(cell_artifacts) + 1)
+            good_cells = np.sort(good_cells)
+            
+            for iv in range(good_cells.size):
+                for its in range(len(Mask3)):
+                    pix = np.where(Mask3[its] == good_cells[iv])
+                    Mask3[its][pix] = iv + 1
+            
+            no_obj = good_cells.size
+            all_ob = cal_allob1(no_obj, Mask3, range(len(Mask3)))
+            cell_exists = np.zeros((2, all_ob.shape[0]))
+            for itt2 in range(all_ob.shape[0]):
+                cell_exists[0, itt2] = np.argmax(all_ob[itt2,:] > 0)
+                cell_exists[1, itt2] = len(all_ob[itt2, :]) - 1 - np.argmax(all_ob[itt2, ::-1] > 0)
+                
+        #####
+                
         all_ob = binar(all_ob)
         plt.figure()
         plt.imshow(all_ob, cmap='gray')
