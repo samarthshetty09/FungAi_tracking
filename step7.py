@@ -83,10 +83,16 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
                     Mask3.append(mask)
         
         
+        # TODO! range from no_obj (one obj should contain 1)
+        cell_data = mat["cell_data"]
+        arr = [1]
+        # for iv in arr:
         for iv in range(int(mat['no_obj'][0, 0])):
             indx_remov = []
             final_indx_remov = []
-            for its in range(int(mat['cell_data'][0, iv]), int(mat['cell_data'][1, iv])):  # check for 10 time points
+            # TODO! remove Hardcode range (check git changes)
+            # for its in range(241, 777):  # check for 10 time points
+            for its in range(int(mat['cell_data'][0, iv]), int(mat['cell_data'][1, iv])):
                 M = Matmasks[its].T
                 
 # =============================================================================
@@ -96,8 +102,23 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
 #                 plt.show()
 # =============================================================================
                 
-                M0 = (M == iv).astype(np.uint16)
+                M0 = (M == iv+1).astype(np.uint16)
+                
+# =============================================================================
+#                 plt.figure()
+#                 plt.imshow(M0, cmap='gray')
+#                 plt.title('M0')
+#                 plt.show()
+# =============================================================================
+                
                 A = Mask3[its].T
+                
+                # plt.figure()
+                # plt.imshow(A, cmap='gray')
+                # plt.title('A')
+                # plt.show()
+                
+                
                 M1 = binar(M0)
                 
 # =============================================================================
@@ -107,15 +128,21 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
 #                 plt.show()
 # =============================================================================
                 
-                #M2 = thin(M1, 30)
-                M2 = skeletonize(M1)
+                M2 = thin(M1, 30)
+                #M2 = skeletonize(M1)
                 
-                plt.figure()
-                plt.imshow(M2, cmap='gray')
-                plt.title('M2')
-                plt.show()
+                # plt.figure()
+                # plt.imshow(M2, cmap='gray')
+                # plt.title('M2')
+                # plt.show()
                 
                 M3 = A * M2
+                
+                # plt.figure()
+                # plt.imshow(M3, cmap='gray')
+                # plt.title('M3')
+                # plt.show()
+                
             
                 
                 indx = np.unique(A[M3 != 0])
@@ -123,16 +150,17 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
                     for itt2 in indx:
                         if np.sum(M3 == itt2) > 5:
                             indx_remov.append(itt2)
-
+            
+            cell_exists = art["cell_exists"]
             if len(indx_remov) > 0:
                 indx_remov_inter = np.unique(indx_remov)
                 final_indx_remov = np.unique(indx_remov)
                 for itt1 in indx_remov_inter:
                     dist_data = -1 * np.ones(len(Mask3))
-                    for its1 in range(mat['cell_data'][iv, 0], art['cell_exists'][1, itt1] + 1):
-                        if its1 >= art['cell_exists'][0, itt1]:
-                            M6 = (Mask3[0, its1] == itt1)
-                            M7 = (Matmasks[0, its1] == iv + 1)
+                    for its1 in range(int(mat['cell_data'][0, iv]), int(art['cell_exists'][int(itt1)-1, 1])):
+                        if its1 >= art['cell_exists'][int(itt1)-1, 0]:
+                            M6 = (Mask3[its1] == itt1)
+                            M7 = (Matmasks[its1] == iv + 1)
                             dist_data[its1] = np.sum(M6 * M7) / np.sum(M6)
                     
                     if np.any(dist_data != -1):
@@ -142,9 +170,9 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
                         if val_avg <= 0.4:
                             final_indx_remov = np.setdiff1d(final_indx_remov, itt1)
                 
-                for its in range(mat['cell_data'][iv, 0], len(Mask3)):
+                for its in range(int(mat['cell_data'][0, iv]), len(Mask3)):
                     for itt in final_indx_remov:
-                        Mask3[0, its][Mask3[0, its] == itt] = 0
+                        Mask3[its][Mask3[its] == itt] = 0
             print(iv)
         
         shock_period = mat['shock_period']
