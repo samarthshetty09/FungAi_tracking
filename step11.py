@@ -109,12 +109,12 @@ for iv in range(TET_obj):
         A = A[tet_ids['TET_ID'][0, iv]-1, start-1:].T  # Size is calculated only from shock end +1 to the end
         
         # Plot original data for verification
-        plt.figure()
-        plt.plot(A)
-        plt.title(f'Original Data for TET_ID {tet_ids["TET_ID"][0, iv]}')
-        plt.xlabel('Time')
-        plt.ylabel('Value')
-        plt.show()
+        # plt.figure()
+        # plt.plot(A)
+        # plt.title(f'Original Data for TET_ID {tet_ids["TET_ID"][0, iv]}')
+        # plt.xlabel('Time')
+        # plt.ylabel('Value')
+        # plt.show()
         
         # Adjust period as needed
         period = 40  # Change this to match MATLAB behavior
@@ -131,34 +131,34 @@ for iv in range(TET_obj):
             dead_tets[iv] = 0
         
         # Plotting the seasonal component
-        plt.figure()
-        plt.plot(ST)
-        plt.title(f'Seasonal Component for TET_ID {tet_ids["TET_ID"][0, iv]}')
-        plt.xlabel('Time')
-        plt.ylabel('Seasonal Component')
-        plt.show()
+        # plt.figure()
+        # plt.plot(ST)
+        # plt.title(f'Seasonal Component for TET_ID {tet_ids["TET_ID"][0, iv]}')
+        # plt.xlabel('Time')
+        # plt.ylabel('Seasonal Component')
+        # plt.show()
 
-        # Plotting the entire decomposition for comparison
-        plt.figure(figsize=(12, 8))
+        # # Plotting the entire decomposition for comparison
+        # plt.figure(figsize=(12, 8))
         
-        plt.subplot(4, 1, 1)
-        plt.plot(A)
-        plt.title('Original Data')
+        # plt.subplot(4, 1, 1)
+        # plt.plot(A)
+        # plt.title('Original Data')
         
-        plt.subplot(4, 1, 2)
-        plt.plot(LT)
-        plt.title('Trend Component')
+        # plt.subplot(4, 1, 2)
+        # plt.plot(LT)
+        # plt.title('Trend Component')
         
-        plt.subplot(4, 1, 3)
-        plt.plot(ST)
-        plt.title('Seasonal Component')
+        # plt.subplot(4, 1, 3)
+        # plt.plot(ST)
+        # plt.title('Seasonal Component')
         
-        plt.subplot(4, 1, 4)
-        plt.plot(R)
-        plt.title('Residual Component')
+        # plt.subplot(4, 1, 4)
+        # plt.plot(R)
+        # plt.title('Residual Component')
         
-        plt.tight_layout()
-        plt.show()
+        # plt.tight_layout()
+        # plt.show()
 
     else:
         size_var_tet[iv] = -10**5  # If they have a TET_ID of -1
@@ -181,10 +181,10 @@ for its in int_range:
 
     # To visualize the images, you can use matplotlib (optional)
     
-    plt.figure()
-    plt.imshow(A2, cmap='gray')
-    plt.title('A2')
-    plt.show()
+    # plt.figure()
+    # plt.imshow(A2, cmap='gray')
+    # plt.title('A2')
+    # plt.show()
 
     A3 = (A1.astype(bool)).astype(np.uint16) * A2.astype(np.uint16)
     indx_ori = np.unique(A1[A1 != 0])  # previous mask
@@ -308,10 +308,10 @@ for iv in range(int(tet['TET_obj'][0, 0])):
             T1 = masks[int(tet['TET_exists'][iv, 0])] == iv + 1
             T2 = (I3.astype(np.uint16) * T1.astype(np.uint16))
             
-            plt.figure()
-            plt.imshow(T1, cmap='gray')
-            plt.title('T1')
-            plt.show()
+            # plt.figure()
+            # plt.imshow(T1, cmap='gray')
+            # plt.title('T1')
+            # plt.show()
 
             pix = np.unique(T2[T2 != 0])
             if pix.size > 0:
@@ -341,10 +341,10 @@ for iv in alive_tets:
         its = art['cell_exists'][0, ittx1 - 1]
         M = ART[int(its)]
         
-        plt.figure()
-        plt.imshow(M, cmap='gray')
-        plt.title('M')
-        plt.show()
+        # plt.figure()
+        # plt.imshow(M, cmap='gray')
+        # plt.title('M')
+        # plt.show()
         
         I_s0 = np.zeros_like(M, dtype=np.uint16)
         I_s2 = np.zeros_like(M, dtype=np.uint16)
@@ -407,7 +407,12 @@ for iv in range(int(tet['TET_obj'][0, 0])):
         descendants_data.append([iv, tet_ids['TET_ID'][0, iv], list(descendants[iv] - {tet_ids['TET_ID'][0, iv]})])
 
 
-## !TODO convert set to array
+# Convert each set to a list
+list_of_lists = [list(s) for s in descendants]
+# Convert the list of lists to a numpy array
+descendants = np.array(list_of_lists)
+
+
 sio.savemat(os.path.join(sav_path, f'{pos}_descendants_new_art.mat'), {
     "I3": I3, "descendants_data": descendants_data, "descendants": descendants, 
     "alive_tets": alive_tets, "common_indices": common_indices, "cell_arrays": cell_arrays, 
