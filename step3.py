@@ -117,10 +117,10 @@ while xx != 0:
         plt.show()
         """
         
-        plt.figure()
-        plt.imshow(np.uint16(I3B), cmap='gray')
-        plt.title('I3B')
-        plt.show()
+        # plt.figure()
+        # plt.imshow(np.uint16(I3B), cmap='gray')
+        # plt.title('I3B')
+        # plt.show()
         
         """
         plt.figure()

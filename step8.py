@@ -85,11 +85,11 @@ def process_art_tracks(files, last_tp, end_inter, st_inter, suffix):
         
         all_ob1 = cal_allob1(int(no_obj), Mask3, range(len(Mask3)))
         
-        all_ob1 = binar(all_ob1)
-        plt.figure()
-        plt.imshow(all_ob1, cmap='gray')
-        plt.title('all_ob1')
-        plt.show()
+        # all_ob1 = binar(all_ob1)
+        # plt.figure()
+        # plt.imshow(all_ob1, cmap='gray')
+        # plt.title('all_ob1')
+        # plt.show()
         
         
         endi = len(Mask3) - (last_tp - end_inter)
@@ -173,11 +173,11 @@ def process_art_tracks(files, last_tp, end_inter, st_inter, suffix):
                 
         #####
                 
-        all_ob = binar(all_ob)
-        plt.figure()
-        plt.imshow(all_ob, cmap='gray')
-        plt.title('all_ob')
-        plt.show()
+        # all_ob = binar(all_ob)
+        # plt.figure()
+        # plt.imshow(all_ob, cmap='gray')
+        # plt.title('all_ob')
+        # plt.show()
         
         sio.savemat(os.path.join(sav_path, new_art_name), {
             'Mask3': Mask3, 'all_ob': all_ob, 'ccell2': data['ccell2'], 

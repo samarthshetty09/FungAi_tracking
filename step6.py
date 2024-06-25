@@ -145,10 +145,10 @@ if no_obj != 0:
             M2 = thin(M1, 30)
             M3 = A * M2
             
-            plt.figure()
-            plt.imshow(np.uint16(M3), cmap='gray')
-            plt.title('M3')
-            plt.show()
+            # plt.figure()
+            # plt.imshow(np.uint16(M3), cmap='gray')
+            # plt.title('M3')
+            # plt.show()
             
             indx = np.unique(A[M3 != 0])
             if indx.size > 0:
