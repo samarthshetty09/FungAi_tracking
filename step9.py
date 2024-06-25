@@ -77,10 +77,10 @@ for iv in range(int(mat['no_obj'][0, 0])):
         A1 = Mask3[its].astype(float)
         
         
-        plt.figure()
-        plt.imshow(A1, cmap='gray')
-        plt.title('A1')
-        plt.show()
+        # plt.figure()
+        # plt.imshow(A1, cmap='gray')
+        # plt.title('A1')
+        # plt.show()
     
         
         
@@ -90,12 +90,12 @@ for iv in range(int(mat['no_obj'][0, 0])):
         Im2 = thin(Im1, 10).astype(float)
         Im3 = A1 * Im2
         
-        """
-        plt.figure()
-        plt.imshow(Im2, cmap='gray')
-        plt.title('Im2')
-        plt.show()
-        """
+        
+        # plt.figure()
+        # plt.imshow(Im2, cmap='gray')
+        # plt.title('Im2')
+        # plt.show()
+        
         
         
         # plt.figure()
@@ -125,10 +125,10 @@ for iv in range(int(mat['no_obj'][0, 0])):
             Im2 = thin(Im1, 10).astype(float)
             Im3 = A1 * Im2
             
-            plt.figure()
-            plt.imshow(Im3, cmap='gray')
-            plt.title('Im3_2')
-            plt.show()
+            # plt.figure()
+            # plt.imshow(Im3, cmap='gray')
+            # plt.title('Im3_2')
+            # plt.show()
             
             pix2 = np.unique(A1[Im3 != 0])
             
