@@ -17,13 +17,13 @@ import matplotlib.pyplot as plt
 
 # Define thresholds and parameters
 pos = 'Pos0_2'
-path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/{pos}/'
-sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res'
+path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Python_Track_Test/Pro/'
+sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res/'
 shock_period = [122, 134]
 
 # Load image file names
-file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_MAT16_18_masks.tif')]
-file_numbers = [int(f.split('img_')[1].split('_Ph3_000_MAT16_18_masks.tif')[0]) for f in file_names]
+file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_cp_masks.tif')]
+file_numbers = [int(f.split('img_')[1].split('_Ph3_000_cp_masks.tif')[0]) for f in file_names]
 
 sorted_indices = np.argsort(file_numbers)
 sorted_numbers = np.array(file_numbers)[sorted_indices]
@@ -40,12 +40,12 @@ for i in range(min(sorted_numbers), len(mat_masks)):
 
 # Remove shock-induced timepoints
 mat_masks_original = mat_masks.copy()
-for start, end in [shock_period]:
-    for i in range(start, end + 1):
-        mat_masks[i] = None
+# for start, end in [shock_period]:
+#     for i in range(start, end + 1):
+#         mat_masks[i] = None
 
 start = 0
-for its in range(len(mat_masks)):
+for its in range(1, len(mat_masks) + 1):
     if mat_masks[its] is not None and np.sum(mat_masks[its]) > 0:
         start = its
         break
@@ -69,6 +69,13 @@ xx = start
 rang2 = rang
 ccel = 1
 
+# uq = mat_masks[50]
+# print(np.unique(uq)[0:])
+# plt.figure()
+# plt.imshow(np.uint16(uq), cmap='gray')
+# plt.title('uq')
+# plt.show()
+
 while xx != 0:
     for im_no in rang2:
         #I2 = mat_masks[im_no] if ccel == 1 else MATC[1][im_no]
@@ -81,53 +88,48 @@ while xx != 0:
             continue
         
         
-# =============================================================================
-#         plt.figure()
-#         plt.imshow(np.uint16(I2), cmap='gray')
-#         plt.title('I2')
-#         plt.show()
-# =============================================================================
+        # plt.figure()
+        # plt.imshow(np.uint16(I2), cmap='gray')
+        # plt.title('I2')
+        # plt.show()
               
-        if(im_no < 280):
-            print(im_no, min(rang2))
+        # if(im_no < 280):
+        #     print(im_no, min(rang2))
             
         if im_no == min(rang2):
+            #TODO! 
             ind1 = np.unique(I2)[1:]  # Exclude background
-            I3 = I2 == ind1[0]
+            I3 = (I2 == ind1[0])
             I3A = I3
+            # plt.figure()
+            # plt.imshow(np.uint16(I3A), cmap='gray')
+            # plt.title('I3A')
+            # plt.show()
         else:
             I3A = IS6
-# =============================================================================
-#             plt.figure()
-#             plt.imshow(np.uint16(I3A), cmap='gray')
-#             plt.title('I3A')
-#             plt.show()
-# =============================================================================
+            # plt.figure()
+            # plt.imshow(np.uint16(I3A), cmap='gray')
+            # plt.title('I3A')
+            # plt.show()
                   
 
         
         I3A = skeletonize(I3A)
-        I2A = I2
+        I2A = np.copy(I2)
         I3B = np.uint16(I3A) * np.uint16(I2A)
         
-        """
-        plt.figure()
-        plt.imshow(np.uint16(I3A), cmap='gray')
-        plt.title('I3A')
-        plt.show()
-        """
         
         # plt.figure()
-        # plt.imshow(np.uint16(I3B), cmap='gray')
-        # plt.title('I3B')
+        # plt.imshow(np.uint16(I3A), cmap='gray')
+        # plt.title('I3A')
         # plt.show()
         
-        """
+        
         plt.figure()
         plt.imshow(np.uint16(I3B), cmap='gray')
         plt.title('I3B')
         plt.show()
-        """
+        
         
         ind = mode(I3B[I3B != 0])[0]
 
@@ -148,9 +150,9 @@ while xx != 0:
             continue
         elif ind == 0 and ccel != 1:
             continue
-
-        pix = np.where(np.uint16(I2A == ind))
-        pix0 = np.where(np.uint16(I2A != ind))
+        
+        pix = (I2A == ind)
+        pix0 = (I2A != ind)
 
         I2A[pix] = ccel
         I2A[pix0] = 0
@@ -164,14 +166,16 @@ while xx != 0:
         """
         
         I22 = np.zeros_like(I2)
-        pix1 = np.where(IS6 == ccel)
+        pix1 = (IS6 == ccel)
         I2[pix1] = 0
+        
+        #TODO! 
         pix2 = np.unique(I2)[1:]  # Exclude background
 
         if ccel == 1:
-            for ity in pix2:
-                pix4 = np.where(I2 == ity)
-                I22[pix4] = ity
+            for ity in range(len(pix2)):
+                pix4 = np.where(I2 == pix2[ity])
+                I22[pix4] = ity + 1
             MATC[0][im_no] = IS6
         else:
             if pix2.size > 0:
@@ -184,14 +188,14 @@ while xx != 0:
             IS61[pix] = ccel
             MATC[0][im_no] = np.uint16(IS61)
 
-        MATC[1][im_no] = I22
+        MATC[1][im_no] = I22.astype(np.uint16)
         
-        """
-        plt.figure()
-        plt.imshow(np.uint16(IS6), cmap='gray')
-        plt.title('IS6')
-        plt.show()
-        """
+        
+        # plt.figure()
+        # plt.imshow(np.uint16(IS6), cmap='gray')
+        # plt.title('IS6')
+        # plt.show()
+        
 
     xx = 0
     for i in rang:
@@ -203,6 +207,16 @@ while xx != 0:
     print(xx)
 
 ccel -= 1  # number of cells tracked
+
+# for x in rang2:
+#     tracked = MATC[1][x]
+#     plt.figure()
+#     plt.imshow(np.uint16(tracked) == 1, cmap='gray')
+#     plt.title('tracked')
+#     plt.show()
+    
+
+
 
 # Removing the shock-induced points from rang
 rang3 = list(rang)
@@ -293,13 +307,13 @@ def replace_none_with_empty_array(data):
 Matmasks = replace_none_with_empty_array(Matmasks)
 mat_masks_original = replace_none_with_empty_array(mat_masks_original)
 # Save results
-sio.savemat(f'{sav_path}{pos}_MAT_16_18_Track.mat', {
+sio.savemat(f'{sav_path}{pos}_sam_MAT_16_18_Track.mat', {
     "Matmasks": Matmasks,
     "no_obj": no_obj,
-    "all_obj": all_obj,
+    ##"all_obj": all_obj,
     "cell_data": cell_data,
     "rang": rang,
-    "rang3": rang3,
+    ##"rang3": rang3,
     "shock_period": shock_period,
     "mat_masks_original": mat_masks_original,
     "start": start
