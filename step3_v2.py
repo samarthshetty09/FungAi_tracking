@@ -626,6 +626,7 @@ for itt2 in range(tp_im.shape[0]):
 
 # Sort based on the first detection
 sortOrder = np.argsort(cell_exists0[0, :]) #check the sort !TODO:
+sorted_order = sorted(sortOrder)    
 cell_exists = cell_exists0[:, sortOrder]
 # sortOrder = sorted(sortOrder)
 # sortOrder.append(len(sortOrder))
@@ -650,7 +651,7 @@ Mask6 = np.zeros_like(Mask5)
     
 
 for itt3 in range(len(sortOrder)):
-    pix3 = (Mask5 == sortOrder[itt3])  # here
+    pix3 = (Mask5 == sortOrder[itt3]+1)  # here
     Mask6[pix3] = itt3 + 1# reassign
 
 # Get cell presence 3
@@ -660,23 +661,21 @@ obj = np.unique(Mask6)
 no_obj1 = int(obj.max())
 A = 1
 
+tic = time.time()
 tp_im = np.zeros((no_obj1, im_no))
-
 for cel in range(1, no_obj1 + 1):
-    Ma = (Mask7 == cel)
+    tp_im[cel - 1, :] = ((Mask7 == cel).sum(axis=(0, 1)) != 0).astype(int)
+    if cel > 1 and np.sum(tp_im[cel - 1]) == 0:
+            tp_im[cel - 1] = tp_im[cel - 2]
+toc = time.time()
+print(f'Elapsed time is {toc - tic} seconds.')
 
-    for ih in range(numbM):
-        if Ma[:, :, ih].sum() != 0:
-            tp_im[cel-1, ih] = 1
-
-
-
-# plt.figure()
-# plt.imshow(tp_im, aspect='auto')
-# plt.title("Cell Presence Over Time")
-# plt.xlabel("Time")
-# plt.ylabel("Cells")
-# plt.show()
+plt.figure()
+plt.imshow(tp_im, aspect='auto')
+plt.title("Cell Presence Over Time")
+plt.xlabel("Time")
+plt.ylabel("Cells")
+plt.show()
 
 
 # Calculate size
@@ -686,23 +685,13 @@ im_no = Mask3.shape[2]
 all_ob = np.zeros((no_obj, im_no))
 
 tic = time.time()
-
 for ccell in range(1, no_obj + 1):
-    Maa = (Mask7 == ccell + 1)
-
-    for i in range(im_no):
-        pix = np.sum(Maa[:, :, i])
-        all_ob[ccell-1, i] = pix
-
-
-# zero_counts = np.sum(all_ob == 0, axis=1)
-# sorted_indices = np.argsort(zero_counts)
-# sorted_arr = all_ob[sorted_indices]
-
+    all_ob[ccell - 1, :] = np.sum(Mask7 == ccell + 1, axis=(0, 1))
+    if ccell > 1 and not np.any(all_ob[ccell - 1]):
+        all_ob[ccell - 1] = all_ob[ccell - 2]
 toc = time.time()
+
 print(f'Elapsed time is {toc - tic} seconds.')
-
-
 
 plt.figure()
 plt.imshow(all_ob, aspect='auto', cmap='viridis')
