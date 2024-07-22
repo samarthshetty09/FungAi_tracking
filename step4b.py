@@ -2,19 +2,35 @@ import os
 import h5py
 import numpy as np
 import scipy.io as sio
-from scipy.ndimage import median_filter, binary_fill_holes
-from skimage.morphology import remove_small_objects, skeletonize
+from scipy.ndimage import median_filter, binary_fill_holes, label
+from skimage.morphology import remove_small_objects, skeletonize, thin
+from skimage.segmentation import find_boundaries
 from skimage.io import imread
+from skimage.measure import regionprops
+import math
 from concurrent.futures import ThreadPoolExecutor
 import glob
 from functions.OAM_230905_Get_Sphere_Vol_cyt import OAM_230905_Get_Sphere_Vol_cyt
 from functions.OAM_230905_Get_Sphere_Vol_nuc import OAM_230905_Get_Sphere_Vol_nuc
 from functions.OAM_230906_Gaussian_nuclear_fit import OAM_230906_Gaussian_nuclear_fit
 from functions.get_wind_coord1 import get_wind_coord1
+import matplotlib.pyplot as plt
 
 def OAM_230905_Get_Sphere_Vol_cell(ccell):
     # Dummy implementation
-    return np.sum(ccell)
+    """
+    Uses a binary mask of a cell or cellular structures as a matrix to calculate
+    the volume of a sphere with the same equivalent diameter.
+    """
+    mask_cyt1, num_features = label(ccell)
+    Spherical_vol_cell = 0
+    
+    for it in range(1, num_features + 1):
+        Ic = (mask_cyt1 == it)
+        ed = regionprops(Ic.astype(int))[0].equivalent_diameter
+        Spherical_vol_cell += (0.523 * (ed ** 3))
+    
+    return Spherical_vol_cell
 
 def load_mat(filename):
     try:
@@ -36,8 +52,9 @@ def resolve_h5py_reference(data, f):
 exp_name = 'OAM_200303_6c_I'
 pos = 'Pos0_2'
 # path_h0 = os.path.join('Users', 'samarth', 'Documents', 'MATLAB', exp_name, 'Segs', 'ART', 'Tracks')
-path_h0 = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Tracks2/'
-im_path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/{pos}/'
+path_h0 = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Fluorescence_test/ARTS'
+im_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Fluorescence_test/Pos_0_test/'
+sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res/'
 
 # Get all directories
 # exp_foldrs = [d for d in os.listdir(im_path) if os.path.isdir(os.path.join(im_path, d))]
@@ -59,13 +76,15 @@ sorted(file_list)
 mat_data = load_mat(os.path.join(mat_path, file_list[0]))
 
   # change to Mask7 
-Mask2 = []
-with h5py.File(os.path.join(mat_path, file_list[0]), 'r') as f:
-    for i in range(len(f['Mask3'])):
-        masks_refs = f['Mask3'][i]
-        for ref in masks_refs:
-            mask = resolve_h5py_reference(ref, f)
-            Mask2.append(mask)
+# Mask2 = []
+# with h5py.File(os.path.join(mat_path, file_list[0]), 'r') as f:
+#     for i in range(len(f['Mask3'])):
+#         masks_refs = f['Mask3'][i]
+#         for ref in masks_refs:
+#             mask = resolve_h5py_reference(ref, f)
+#             Mask2.append(mask)
+
+Mask2 = mat_data['Mask7'].T
 
 # x_size, y_size = Mask2.shape[0], Mask2.shape[1]
 x_size, y_size = Mask2[0].shape[0], Mask2[0].shape[1]
@@ -75,10 +94,21 @@ x_size, y_size = Mask2[0].shape[0], Mask2[0].shape[1]
 Ipath = os.path.join(im_path)
 
 file_n = sorted(glob.glob(os.path.join(Ipath, '*.tif')))
+file_n2 = [f for f in file_n]
 no_obj = np.unique(Mask2).size
 
-channels = [os.path.splitext(os.path.basename(f))[0][13:] for f in file_n if 'Ph3' not in f]
-channels = np.unique(channels)
+
+Name = []
+A = 1
+for it01 in range(7):  # maximum number of channels for now
+    if 'Ph3' not in file_n2[it01]:
+        # channelName = file_n2[it01][13:]  # 14th position in Python is index 13
+        channelName = file_n2[it01][99:]
+        Name.append(channelName)
+        A += 1
+
+channels = np.unique(Name)
+
 
 ALLDATA = [
     ['Channel_name'], ['Cell_Size'], ['cell_vol'], ['max_nuc_int1'], ['mean_cell_Fl1'],
@@ -89,7 +119,9 @@ ALLDATA = [
 ]
 
 for channel in channels:
+    # channel = str(channels[0])
     file1 = sorted(glob.glob(os.path.join(Ipath, f'*{channel}')))
+    file2 = [os.path.basename(file) for file in file1]
     
     cell_Vol1 = np.zeros((no_obj, Mask2.shape[2]))
     max_nuc_int1 = np.zeros((no_obj, Mask2.shape[2]))
@@ -116,19 +148,22 @@ for channel in channels:
     all_back = np.zeros((1, Mask2.shape[2]))
     Cell_Size1 = np.zeros((no_obj, Mask2.shape[2]))
 
-    def process_timepoint(c_time):
-        nonlocal cell_Vol1, max_nuc_int1, mean_cell_Fl1, Conc_T_cell_Fl1, mem_area1
-        nonlocal nuc_area1, cyt_area1, mean_fl_mem1, std_fl_mem1, tot_Fl_mem1
-        nonlocal tot_Fl_cyt1, tot_Fl_nuc1, mean_int_per_area_C1, mean_int_per_area_N1
-        nonlocal nuc_Vol1, cyt_Vol1, cyt_Vol_sub1, FL_Conc_T1, FL_Conc_C1, FL_Conc_N1
-        nonlocal FL_mean_int_N_thr1, FL_mean_int_C_thr1, Cell_Size1, all_back
-
+    for c_time in range(Mask2.shape[2]):
+        # c_time = 0;
+        print('ctime:', c_time)
         Lcells = Mask2[:, :, c_time]
+        # plt.imshow(Lcells)
 
         if Lcells.size != 0 and np.sum(Lcells) != 0:
             I = imread(file1[c_time])
             I = I.astype(np.float64)
-            I = median_filter(I, size=3, mode='nearest')
+            # plt.imshow(I);
+            # save_path = os.path.join(sav_path, 'I.mat')
+            # sio.savemat(save_path, {
+            #     'I_py': I,
+
+            # })
+            I = median_filter(I, size=3, mode='reflect')
             
             bck = I * (Lcells == 0)
             backgr = np.median(bck[bck != 0])
@@ -160,50 +195,69 @@ for channel in channels:
             cell_size = np.zeros(no_obj)
 
             for cell_no in range(1, no_obj + 1):
+                # cell_no = 1
+                print(cell_no, ' / ',  no_obj)
                 ccell = (Lcells == cell_no).astype(np.float64)
+                # plt.imshow(ccell)
                 if np.sum(ccell) != 0:
-                    y_cn, x_cn = get_wind_coord1(ccell, cell_margin)
-                    ccell = ccell[y_cn, x_cn]
+                    x_cn, y_cn = get_wind_coord1(ccell, cell_margin)
+                    # ccell = ccell[x_cn, y_cn]
+                    ccell = ccell[np.ix_(y_cn, x_cn)]
+                    # plt.imshow(ccell)
                     cell_size[cell_no - 1] = np.sum(ccell)
+
                     cell_Vol[cell_no - 1] = OAM_230905_Get_Sphere_Vol_cell(ccell)
 
-                    I_cell = I[y_cn, x_cn]
+                    I_cell = I[np.ix_(y_cn, x_cn)]
+                    # plt.imshow(I_cell)
                     put_I = ccell * I_cell
+                    # plt.imshow(put_I)
                     max_nuc_int[cell_no - 1] = np.max(put_I)
                     mean_cell_Fl[cell_no - 1] = np.sum(put_I) / np.sum(ccell)
                     Conc_T_cell_Fl[cell_no - 1] = np.sum(put_I) / cell_Vol[cell_no - 1]
 
                     mask_nuc = OAM_230906_Gaussian_nuclear_fit(I_cell, peak_cutoff, x_size, y_size, ccell)
-                    mask_mem = skeletonize(ccell).astype(np.float64)
+                    # plt.imshow(mask_nuc)
+                    # mask_mem = skeletonize(ccell)
+                    mask_mem = find_boundaries(ccell, mode='inner') 
+                    # plt.imshow(mask_mem)
                     mem_area[cell_no - 1] = np.sum(mask_mem)
 
                     if np.sum(mask_nuc) != 0:
                         mask_cyt = ccell - mask_nuc
                     else:
                         mask_cyt = np.nan
-
+                    
+                    # plt.imshow(mask_cyt)
                     nuc_area[cell_no - 1] = np.sum(mask_nuc)
                     cyt_area[cell_no - 1] = np.sum(mask_cyt)
                     mem_fl = mask_mem * I_cell
+                    # plt.imshow(mem_fl)
                     mean_fl_mem[cell_no - 1] = np.median(mem_fl[mem_fl != 0])
                     std_fl_mem[cell_no - 1] = np.std(mem_fl[mem_fl != 0])
+                    # plt.imshow(std_fl_mem)
                     tot_Fl_mem[cell_no - 1] = np.sum(mem_fl)
                     tot_Fl_cyt[cell_no - 1] = np.sum(mask_cyt * I_cell)
                     tot_Fl_nuc[cell_no - 1] = np.sum(mask_nuc * I_cell)
                     mean_int_per_area_C[cell_no - 1] = np.sum(mask_cyt * I_cell) / np.sum(mask_cyt)
                     mean_int_per_area_N[cell_no - 1] = np.sum(mask_nuc * I_cell) / np.sum(mask_nuc)
+                    ##
                     nuc_Vol[cell_no - 1] = OAM_230905_Get_Sphere_Vol_nuc(mask_nuc)
                     cyt_Vol[cell_no - 1] = OAM_230905_Get_Sphere_Vol_cyt(mask_cyt)
+                    ##
                     cyt_Vol_sub[cell_no - 1] = cell_Vol[cell_no - 1] - nuc_Vol[cell_no - 1]
                     FL_Conc_T[cell_no - 1] = np.sum(put_I) / cell_Vol[cell_no - 1]
                     FL_Conc_C[cell_no - 1] = tot_Fl_cyt[cell_no - 1] / cyt_Vol[cell_no - 1]
                     FL_Conc_N[cell_no - 1] = tot_Fl_nuc[cell_no - 1] / nuc_Vol[cell_no - 1]
-
+                    ###
                     put_mod = (put_I > (I_mean_modifier * np.mean(put_I[put_I > 0]))).astype(np.float64)
                     put_mod = remove_small_objects(put_mod.astype(bool), 5).astype(np.float64)
                     put_mod = binary_fill_holes(put_mod)
+                    # plt.imshow(put_mod)
+                    ###
                     FL_mean_int_N_thr[cell_no - 1] = np.sum(put_mod * put_I) / np.sum(put_mod)
                     no = put_I * (1 - put_mod)
+                    # plt.imshow(no)
                     FL_mean_int_C_thr[cell_no - 1] = np.sum(no[no > 0]) / np.sum(no > 0)
                 else:
                     cell_Vol[cell_no - 1] = 0
@@ -254,8 +308,8 @@ for channel in channels:
             FL_mean_int_C_thr1[:, c_time] = FL_mean_int_C_thr
             Cell_Size1[:, c_time] = cell_size
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
-        executor.map(process_timepoint, range(Mask2.shape[2]))
+    # with ThreadPoolExecutor(max_workers=16) as executor:
+    #     executor.map(process_timepoint, range(Mask2.shape[0]))
 
     ALLDATA[0].append(channel)
     ALLDATA[1].append(Cell_Size1)
