@@ -4,20 +4,20 @@ Created on Tue May 21 11:02:00 2024
 
 @author: samarth
 """
-
 import os
 import numpy as np
 import scipy.io as sio
 from skimage.io import imread
-from skimage.morphology import skeletonize
+from skimage.morphology import skeletonize, thin
 from functions.SR_240222_cal_allob import cal_allob
 from functions.SR_240222_cal_celldata import cal_celldata 
 from scipy.stats import mode
 import matplotlib.pyplot as plt
 
+
 # Define thresholds and parameters
 pos = 'Pos0_2'
-path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Python_Track_Test/Pro/'
+path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Python_Track_Test/MAT/'
 sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res/'
 shock_period = [122, 134]
 
@@ -44,15 +44,16 @@ mat_masks_original = mat_masks.copy()
 #     for i in range(start, end + 1):
 #         mat_masks[i] = None
 
-start = 0
-for its in range(1, len(mat_masks) + 1):
-    if mat_masks[its] is not None and np.sum(mat_masks[its]) > 0:
+start = -1
+for its in range(len(mat_masks)):
+    # if mat_masks[its] is not None and np.sum(mat_masks[its]) > 0:
+    if np.sum(mat_masks[its]) > 0:
         start = its
         break
 
 # Tracking all detections
 print("Tracking All Detections")
-if start != 0:
+if start != -1:
     rang = range(start, len(mat_masks))
     I2 = mat_masks[start]
     A = np.zeros_like(mat_masks[start])
@@ -76,7 +77,7 @@ ccel = 1
 # plt.title('uq')
 # plt.show()
 
-while xx != 0:
+while xx != -1:
     for im_no in rang2:
         #I2 = mat_masks[im_no] if ccel == 1 else MATC[1][im_no]
         if ccel == 1:
@@ -100,13 +101,13 @@ while xx != 0:
             #TODO! 
             ind1 = np.unique(I2)[1:]  # Exclude background
             I3 = (I2 == ind1[0])
-            I3A = I3
+            I3A = I3.copy()
             # plt.figure()
             # plt.imshow(np.uint16(I3A), cmap='gray')
             # plt.title('I3A')
             # plt.show()
         else:
-            I3A = IS6
+            I3A = IS6.copy()
             # plt.figure()
             # plt.imshow(np.uint16(I3A), cmap='gray')
             # plt.title('I3A')
@@ -125,10 +126,10 @@ while xx != 0:
         # plt.show()
         
         
-        plt.figure()
-        plt.imshow(np.uint16(I3B), cmap='gray')
-        plt.title('I3B')
-        plt.show()
+        # plt.figure()
+        # plt.imshow(np.uint16(I3B), cmap='gray')
+        # plt.title('I3B')
+        # plt.show()
         
         
         ind = mode(I3B[I3B != 0])[0]
@@ -145,18 +146,30 @@ while xx != 0:
 
 
         if ind == 0 and ccel == 1:
-            MATC[0][im_no] = I3B
-            MATC[1][im_no] = I2A
+            MATC[0][im_no] = I3B.copy()
+            MATC[1][im_no] = I2A.copy()
             continue
         elif ind == 0 and ccel != 1:
             continue
         
-        pix = (I2A == ind)
-        pix0 = (I2A != ind)
+        pix = np.where(I2A == ind)
+        pix0 = np.where(I2A != ind)
+        
+        # pix = np.flatnonzero(I2A == ind)
+        # pix0 = np.flatnonzero(I2A != ind)
+
+        # I2A.flat[pix] = ccel
+        # I2A.flat[pix0] = 0
+        # IS6 = I2A.copy()
+        # I22 = np.zeros_like(I2)
+        # pix1 = np.flatnonzero(IS6 == ccel)
+        # I2.flat[pix1] = 0
+        # pix2 = np.unique(I2)
+        # pix2 = pix2[1:]
 
         I2A[pix] = ccel
         I2A[pix0] = 0
-        IS6 = np.copy(I2A)
+        IS6 = I2A.copy()
         
         """
         plt.figure()
@@ -166,17 +179,17 @@ while xx != 0:
         """
         
         I22 = np.zeros_like(I2)
-        pix1 = (IS6 == ccel)
+        pix1 = np.where(IS6 == ccel)
         I2[pix1] = 0
         
-        #TODO! 
+        # #TODO! 
         pix2 = np.unique(I2)[1:]  # Exclude background
-
+        
         if ccel == 1:
             for ity in range(len(pix2)):
                 pix4 = np.where(I2 == pix2[ity])
                 I22[pix4] = ity + 1
-            MATC[0][im_no] = IS6
+            MATC[0][im_no] = IS6.copy()
         else:
             if pix2.size > 0:
                 for ity in pix2:
@@ -184,11 +197,27 @@ while xx != 0:
                     I22[pix4] = ity
             else:
                 I22 = I2
-            IS61 = MATC[0][im_no]
+            IS61 = (MATC[0][im_no]).copy()
             IS61[pix] = ccel
-            MATC[0][im_no] = np.uint16(IS61)
+            MATC[0][im_no] = np.uint16(IS61.copy())
 
-        MATC[1][im_no] = I22.astype(np.uint16)
+        MATC[1][im_no] = I22.copy()
+        # if ccel == 1:
+        #     for ity in range(len(pix2)):
+        #         pix4 = np.flatnonzero(I2 == pix2[ity])
+        #         I22.flat[pix4] = ity + 1  # Adjust for 0-based indexing in Python
+        #     MATC[0][im_no - 1] = IS6.copy()
+        # else:
+        #     if len(pix2) > 0:
+        #         for ity in range(len(pix2)):
+        #             pix4 = np.flatnonzero(I2 == pix2[ity])
+        #             I22.flat[pix4] = ity + 1  # Adjust for 0-based indexing in Python
+        #     else:
+        #         I22 = I2
+        #     IS61 = (MATC[0][im_no - 1]).copy()
+        #     IS61.flat[pix] = ccel
+        #     MATC[0][im_no - 1] = (IS61.copy()).astype(np.uint16)
+        # MATC[1][im_no - 1] = I22.copy()
         
         
         # plt.figure()
@@ -197,7 +226,7 @@ while xx != 0:
         # plt.show()
         
 
-    xx = 0
+    xx = -1
     for i in rang:
         if MATC[1][i] is not None and np.sum(MATC[1][i]) > 0:
             xx = i
@@ -207,15 +236,6 @@ while xx != 0:
     print(xx)
 
 ccel -= 1  # number of cells tracked
-
-# for x in rang2:
-#     tracked = MATC[1][x]
-#     plt.figure()
-#     plt.imshow(np.uint16(tracked) == 1, cmap='gray')
-#     plt.title('tracked')
-#     plt.show()
-    
-
 
 
 # Removing the shock-induced points from rang
