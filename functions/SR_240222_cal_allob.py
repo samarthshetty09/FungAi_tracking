@@ -16,7 +16,7 @@ def cal_allob(ccel, TETC, rang):
     for iv in range(0, ccel):  # Adjusted to 1-based index
         for its in rang:
             if TETC[0][its] is not None:  # Check if the array is not None and not empty
-                all_obj[iv, its] = np.sum(TETC[0][its] == iv)  # Adjusted for 1-based index logic
+                all_obj[iv, its] = np.sum(TETC[0][its] == iv + 1)  # Adjusted for 1-based index logic
             else:
                 all_obj[iv, its] = -1
 
@@ -45,3 +45,14 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+    
+    # ccel = 10
+    # all_obj = np.zeros((ccel, len(MATC[0])), dtype=np.uint16)
+        
+    # for iv in range(ccel):
+    #     for its in rang:
+    #         if MATC[0][its] is not None:
+    #             all_obj[iv][its] = np.sum(MATC[0][its] == iv + 1)
+    #         else:
+    #             all_obj[iv][its] = -1
