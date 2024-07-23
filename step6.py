@@ -32,10 +32,10 @@ def cal_allob1(ccel, TETC, rang):
     # Initialize the all_obj array with zeros
     all_obj = np.zeros((ccel, len(TETC)))
 
-    for iv in range(0, ccel):  # Adjusted to 1-based index
+    for iv in range(ccel):  # Adjusted to 1-based index
         for its in rang:
-            if TETC[its] is not None:  # Check if the array is not None and not empty
-                all_obj[iv, its] = np.sum(TETC[its] == iv)  # Adjusted for 1-based index logic
+            if np.sum(TETC[its]) > 0:  # Check if the array is not None and not empty
+                all_obj[iv, its] = np.sum(TETC[its] == iv + 1)  # Adjusted for 1-based index logic
             else:
                 all_obj[iv, its] = -1
 
@@ -62,7 +62,7 @@ with h5py.File(os.path.join(path, file_list[0]), 'r') as f:
 # Extract variables from loaded data
 no_obj = int(mat['no_obj'][0])
 if no_obj != 0:
-    shock_period = mat['shock_period'][0]
+    shock_period = mat['shock_period']
     MTrack = Matmasks
     cell_data = mat['cell_data']
 
@@ -98,9 +98,11 @@ if no_obj != 0:
     
 
     for iv in range(no_obj):
+        # iv = 0;
         int_range = range(int(cell_data[0, iv]) - 1, int(cell_data[1, iv]))  # Adjusting for 0-based indexing
         for its in int_range:
-            M = np.uint16(MTrack[its] == iv)
+            # its = 240;
+            M = np.uint16(MTrack[its] == iv + 1).T
             
             
 # =============================================================================
@@ -118,21 +120,22 @@ if no_obj != 0:
         cor_data[1, iv] = np.std(size_cell[iv, int_range])
         cor_data[2, iv] = 1 * cor_data[1, iv]
         outlier_tps[iv] = [t for t in int_range if abs(size_cell[iv, t] - cor_data[0, iv]) > cor_data[2, iv]]
-        good_tps[iv] = list(set(int_range) - set(outlier_tps[iv]))
+        good_tps[iv] = np.setdiff1d(int_range, outlier_tps[iv])
 
     for iv in range(no_obj):
-        int_range = range(int(cell_data[0, iv]), int(cell_data[0, iv]))
+        # iv = 0
+        int_range = range(int(cell_data[0, iv]) - 1, int(cell_data[1, iv]))
         if np.var(morph_data[iv, int_range]) > 0.02:
             mat_artifacts.append(iv)
 
     for iv in range(no_obj):
         outlier = sorted(outlier_tps[iv])
         good = sorted(good_tps[iv])
-        int_range = range(int(cell_data[0, iv]), int(cell_data[0, iv]))
+        int_range = range(int(cell_data[0, iv]) - 1, int(cell_data[1, iv]))
         while outlier:
             its = min(outlier)
             gtp = max([g for g in good if g < its], default=min([g for g in good if g > its], default=its))
-            A = art_masks[its]
+            A = art_masks[its].T
             
 # =============================================================================
 #             plt.figure()
@@ -141,7 +144,7 @@ if no_obj != 0:
 #             plt.show()
 # =============================================================================
             
-            M1 = MTrack[gtp] == (iv + 1)
+            M1 = (MTrack[gtp] == (iv + 1)).T
             M2 = thin(M1, 30)
             M3 = A * M2
             
@@ -152,27 +155,29 @@ if no_obj != 0:
             
             indx = np.unique(A[M3 != 0])
             if indx.size > 0:
-                X1 = np.zeros_like(MTrack[its])
+                X1 = np.zeros_like(MTrack[its]).T
                 for itt2 in indx:
                     if np.sum(M3 == itt2) > 5:
                         X1[A == itt2] = 1
                 X1 = binary_fill_holes(X1)
+                # plt.imshow(X1)
                 X2 = label(X1)
                 if np.max(X2) <= 1 and abs(np.sum(X1) - cor_data[0, iv]) <= 2 * cor_data[1, iv]:
                     MTrack[its][MTrack[its] == (iv + 1)] = 0
-                    MTrack[its][X1 == 1] = iv + 1
+                    (MTrack[its].T)[X1 == 1] = iv + 1
                 else:
                     MTrack[its][MTrack[its] == (iv + 1)] = 0
                     MTrack[its][MTrack[gtp] == (iv + 1)] = iv + 1
             outlier = [o for o in outlier if o != its]
             good.append(its)
+            good = sorted(good)
 
     for iv in range(no_obj):
         if cell_data[1, iv] != tp_end:
             count = 0
             for its in range(int(cell_data[1, iv]), tp_end):
                 A = art_masks[its]
-                M1 = MTrack[its - 1] == (iv + 1)
+                M1 = (MTrack[its - 1] == (iv + 1)).T
                 M2 = thin(M1, 30)
                 M3 = A * M2
                 indx = np.unique(A[M3 != 0])
@@ -208,18 +213,34 @@ if no_obj != 0:
         
 
     # Recalculating MAT Data
+    
     all_obj_new = cal_allob1(no_obj, MTrack, list(range(len(MTrack))))
+    
+    x_scale = 777
+    y_scale = 2
+    aspect_ratio = (777 / all_obj_new.shape[1]) / (2 / all_obj_new.shape[0])
+
+    # Display the image with the adjusted scales
+    plt.imshow(all_obj_new, extent=[0, x_scale, 0, y_scale], aspect='auto')
+    plt.colorbar()
+    
+    # Optional: Set the ticks to reflect the scales accurately
+    plt.xticks(np.linspace(0, x_scale, num=5))
+    plt.yticks(np.linspace(0, y_scale, num=5))
+    
+    plt.show()
+    
     cell_data_new = cal_celldata(all_obj_new, no_obj)
 
     cell_data = cell_data_new
     all_obj = all_obj_new
     Matmasks = MTrack
 
-    sio.savemat(f'{sav_path}{pos}_MAT_16_18_Track1.mat', {
-        "Matmasks": Matmasks,
-        "all_obj": all_obj,
-        "cell_data": cell_data,
-        "no_obj": no_obj,
-        "shock_period": shock_period,
-        "mat_artifacts": mat_artifacts
+    sio.savemat(f'{sav_path}{pos}_MAT_16_18_Track1_py.mat', {
+        "Matmasks_py": Matmasks,
+        "all_obj_py": all_obj,
+        "cell_data_py": cell_data,
+        "no_obj_py": no_obj,
+        "shock_period_py": shock_period,
+        "mat_artifacts_py": mat_artifacts
     }, do_compression=True)
