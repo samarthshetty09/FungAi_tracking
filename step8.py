@@ -321,7 +321,7 @@ def process_tet_tracks(files, last_tp, end_inter, st_inter):
         data = load_mat(tet_path)
         TETmasks = []
         
-        with h5py.File(os.path.join(path, file), 'r') as f:
+        with h5py.File(os.path.join(path, files[0]), 'r') as f:
             for i in range(len(f['TETmasks'])):
                 masks_refs = f['TETmasks'][i]
                 for ref in masks_refs:
