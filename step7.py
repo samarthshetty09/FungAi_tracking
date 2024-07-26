@@ -53,7 +53,7 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
     #Matmasks = mat['Matmasks']
     cell_data = mat['cell_data']
     
-    print("Keys in MAT:", mat.keys())
+    # print("Keys in MAT:", mat.keys())
     
 # =============================================================================
 #     with h5py.File(os.path.join(path, file_list[0]), 'r') as f:
@@ -88,12 +88,18 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
         arr = [1]
         # for iv in arr:
         for iv in range(int(mat['no_obj'][0, 0])):
+            # iv = 0
             indx_remov = []
             final_indx_remov = []
             # TODO! remove Hardcode range (check git changes)
             # for its in range(241, 777):  # check for 10 time points
-            for its in range(int(mat['cell_data'][0, iv]), int(mat['cell_data'][1, iv])):
+            for its in range(int(mat['cell_data'][0, iv])-1, int(mat['cell_data'][1, iv])):
+                # its = 240
                 M = Matmasks[its].T
+                
+                # sio.savemat(os.path.join(sav_path, 'M2_py.mat'), {
+                #     "M2_py": M2
+                # })
                 
 # =============================================================================
 #                 plt.figure()
@@ -156,11 +162,13 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
                 indx_remov_inter = np.unique(indx_remov)
                 final_indx_remov = np.unique(indx_remov)
                 for itt1 in indx_remov_inter:
+                    # itt1 = 1.0
                     dist_data = -1 * np.ones(len(Mask3))
-                    for its1 in range(int(mat['cell_data'][0, iv]), int(art['cell_exists'][int(itt1)-1, 1])):
+                    for its1 in range(int(mat['cell_data'][0, iv]) - 1, int(art['cell_exists'][int(itt1)-1, 1])):
+                        # its1 = 240
                         if its1 >= art['cell_exists'][int(itt1)-1, 0]:
-                            M6 = (Mask3[its1] == itt1)
-                            M7 = (Matmasks[its1] == iv + 1)
+                            M6 = (Mask3[its1] == itt1).T
+                            M7 = (Matmasks[its1] == iv + 1).T
                             dist_data[its1] = np.sum(M6 * M7) / np.sum(M6)
                     
                     if np.any(dist_data != -1):
