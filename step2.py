@@ -6,7 +6,9 @@ from skimage.io import imread
 from skimage.morphology import skeletonize
 from scipy.stats import mode
 from functions.SR_240222_cal_allob import cal_allob
+from functions.OAM_231216_bina import binar
 from functions.SR_240222_cal_celldata import cal_celldata
+import matplotlib.pyplot as plt
 
 # Define thresholds and parameters
 thresh_percent = 0.015
@@ -57,17 +59,17 @@ for i in range(min(sorted_numbers), len(tet_masks)):
 
 # Remove shock-induced timepoints
 for start, end in [shock_period]:
-    for i in range(start, end + 1):
+    for i in range(start-1, end):
         tet_masks[i] = None
 
-start = 0
+start = -1
 for its in range(len(tet_masks)):
     if tet_masks[its] is not None and np.sum(tet_masks[its]) > 0:
         start = its
         break
 
 # Tracking all detections
-if start != 0:
+if start != -1:
     rang = range(start, len(tet_masks))
     I2 = tet_masks[start]
     A = np.zeros_like(tet_masks[start])
@@ -84,21 +86,22 @@ xx = start
 rang2 = rang
 ccel = 1
 
-while xx != 0:
+while xx != -1:
     k = 0
     for im_no in rang2:
+        # im_no = 72
         I2 = tet_masks[im_no] if ccel == 1 else TETC[1][im_no]
         if I2 is None:
             continue
         if im_no == min(rang2):
             ind1 = np.unique(I2)[1:]  # Exclude background
-            I3 = I2 == ind1[0]
-            I3A = I3
+            I3 = (I2 == ind1[0])
+            I3A = I3.copy()
         else:
-            I3A = IS6
+            I3A = IS6.copy()
 
-        I3A = skeletonize(I3A > 0)
-        I2A = I2
+        I3A = skeletonize(binar(I3A))
+        I2A = I2.copy()
         I3B = I3A.astype(np.uint16) * I2A.astype(np.uint16)
         ind = mode(I3B[I3B != 0])[0]
 
@@ -111,8 +114,8 @@ while xx != 0:
                     TETC[1][im_no_1] = tet_masks[im_no_1]
                 break
             else:
-                TETC[0][im_no] = I3B
-                TETC[1][im_no] = I2A
+                TETC[0][im_no] = I3B.copy()
+                TETC[1][im_no] = I2A.copy()
                 continue
         elif ind == 0 and ccel != 1:
             k += 1
@@ -124,11 +127,18 @@ while xx != 0:
         k = 0
         pix = np.where(I2A == ind)
         pix0 = np.where(I2A != ind)
+        
+        # pix = np.flatnonzero(I2A == ind)
+        # pix0 = np.flatnonzero(I2A != ind)
+        
         I2A[pix] = ccel
         I2A[pix0] = 0
-        IS6 = I2A
+        
+        IS6 = I2A.copy()
         I22 = np.zeros_like(I2)
+        
         pix1 = np.where(IS6 == ccel)
+        
         I2[pix1] = 0
         pix2 = np.unique(I2)
         pix2 = pix2[1:]  # Exclude background
@@ -137,7 +147,7 @@ while xx != 0:
             for ity, p2 in enumerate(pix2):
                 pix4 = np.where(I2 == p2)
                 I22[pix4] = ity + 1
-            TETC[0][im_no] = IS6
+            TETC[0][im_no] = IS6.copy()
         else:
             if len(pix2) > 0:
                 for ity, p2 in enumerate(pix2):
@@ -149,9 +159,9 @@ while xx != 0:
             IS61[pix] = ccel
             TETC[0][im_no] = IS61.astype(np.uint16)
 
-        TETC[1][im_no] = I22
+        TETC[1][im_no] = I22.copy()
 
-    xx = 0
+    xx = -1
     for i in rang:
         if TETC[1][i] is not None and np.sum(TETC[1][i]) > 0:
             xx = i
@@ -165,13 +175,29 @@ ccel -= 1  # number of cells tracked
 # Removing the shock-induced points from rang
 rang3 = list(rang)
 for start, end in [shock_period]:
-    for i in range(start, end + 1):
+    for i in range(start-1, end):
         if i in rang3:
             rang3.remove(i)
 
 # Removing artifacts - cells that appear once and cells that disappear thresh % of the time or more
-all_obj = cal_allob(ccel, TETC, rang)
-cell_data = cal_celldata(all_obj, ccel)
+def cal_allob1(ccel, TETC, rang):
+    # Initialize the all_obj array with zeros
+    all_obj = np.zeros((ccel, len(TETC[1])))
+
+    for iv in range(ccel):  # Adjusted to 1-based index
+        for its in rang:
+            if TETC[0][its] is not None and np.sum(TETC[0][its]) > 0:  # Check if the array is not None and not empty
+                all_obj[iv, its] = np.sum(TETC[0][its] == iv + 1)  # Adjusted for 1-based index logic
+            else:
+                all_obj[iv, its] = -1
+
+    return all_obj
+
+all_obj = cal_allob1(ccel, TETC, rang)
+x_scale = 2
+y_scale = 250
+plt.imshow(all_obj, extent=[0, x_scale, 0, y_scale], aspect='auto')
+cell_data = cal_celldata(all_obj, ccel) ## double check values
 
 k = 1
 cell_artifacts = []
@@ -182,7 +208,7 @@ for iv in range(ccel):
 
 all_ccel = list(range(1, ccel + 1))
 
-if cell_artifacts:
+if len(cell_artifacts) > 0:
     cell_artifacts = list(set(cell_artifacts))
     for iv in cell_artifacts:
         for its in rang3:
@@ -199,7 +225,8 @@ for iv in range(len(good_cells)):
 
 # Correcting the SpoSeg track masks or filling the empty spaces between the first and last appearance
 # Removing artifacts
-all_obj1 = cal_allob(len(good_cells), TETC, list(range(len(TETC[0]))))
+all_obj1 = cal_allob1(len(good_cells), TETC, rang)
+# plt.imshow(all_obj1, extent=[0, x_scale, 0, y_scale], aspect='auto')
 cell_data1 = cal_celldata(all_obj1, len(good_cells))
 
 for iv in range(len(good_cells)):
@@ -214,23 +241,23 @@ for iv in range(len(good_cells)):
 TETmasks = [TETC[0][i] for i in range(len(TETC[0]))]
 
 # Calculate the size of tetrads
-
-def cal_allob1(ccel, TETC, rang):
+def cal_allob2(ccel, TETC, rang):
     # Initialize the all_obj array with zeros
     all_obj = np.zeros((ccel, len(TETC)))
 
-    for iv in range(0, ccel):  # Adjusted to 1-based index
+    for iv in range(ccel):  # Adjusted to 1-based index
         for its in rang:
-            if TETC[its] is not None:  # Check if the array is not None and not empty
-                all_obj[iv, its] = np.sum(TETC[its] == iv)  # Adjusted for 1-based index logic
+            if TETC[its] is not None and np.sum(TETC[its]) > 0:  # Check if the array is not None and not empty
+                all_obj[iv, its] = np.sum(TETC[its] == iv + 1)  # Adjusted for 1-based index logic
             else:
                 all_obj[iv, its] = -1
 
     return all_obj
 
 TET_obj = len(good_cells)
-all_obj_final = cal_allob1(TET_obj, TETmasks, list(range(len(TETmasks))))
-TET_Size = all_obj_final
+all_obj_final = cal_allob2(TET_obj, TETmasks, list(range(len(TETmasks))))
+plt.imshow(all_obj1, extent=[0, x_scale, 0, y_scale], aspect='auto')
+TET_Size = all_obj_final.copy()
 
 # Calculate first detection and last detection of tetrads
 TET_exists = np.zeros((2, TET_obj), dtype=int)
@@ -250,6 +277,9 @@ def replace_none_with_empty_array(data):
     
 TETmasks = replace_none_with_empty_array(TETmasks)
 
+            sio.savemat(os.path.join(sav_path, "art_py.mat"), {
+                'all_ob_py': all_ob
+            })
 
 # Save results
 sio.savemat(sav_path + '_TET_Track.mat', {
