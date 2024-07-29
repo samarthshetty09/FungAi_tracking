@@ -2,6 +2,7 @@ __pycache__
 *.tif
 *untitled*
 toy_data
+ros.py
 cache
 *.mat
 *.DS_Store
