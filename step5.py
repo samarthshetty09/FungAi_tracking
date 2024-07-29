@@ -1,152 +1,424 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat May 11 23:38:43 2024
+Created on Mon Jul  8 19:17:47 2024
 
 @author: samarth
 """
+
 import numpy as np
-import os
-import statistics
-import time
+from skimage import io, morphology
+from skimage.morphology import thin, disk, binary_opening, dilation, opening
+from scipy.ndimage import binary_opening, binary_dilation
 from scipy.io import savemat
+import os
+from glob import glob
+import time
+import cv2
 import matplotlib.pyplot as plt
-from functions.OAM_230919_remove_artif import remove_artif
-from functions.OAM_231216_bina import binar
-from PIL import Image
-#import cupy as cp
-from skimage.morphology import thin
+from skimage import img_as_uint
+from scipy import stats
+import scipy.io as sio
+import h5py
 
+Arti_v = 11
+cell_prob = 0.5
+flow_threshold = 0.9
+disk_size = 3
 
+def OAM_231216_bina(IS1):
+    IS1B = IS1.copy()
+    IS1B[IS1 != 0] = 1
+    return IS1B
 
-#Global Variables
-input_images = "/Users/samarth/Documents/MirandaLabs/New_tracks/"
-sav_path = "/Users/samarth/Documents/MirandaLabs/New_tracks/res/"
-pos = 'pos0_2'
-
-#Helper Functions
-def key(filename):
-    return int(filename.split('_')[1])
-
-def display_image(image, title="Image"):
-    if image.ndim > 2:
-        image = np.squeeze(image)
+def OAM_230919_remove_artif(I2A,disk_size): # I2A = IS2 % disk radius is 3 for ~500x~1000, 6 for larger images
+# we need a function to define the disk size base in the average cell size
+    I2AA=np.copy(I2A) #   plt.imshow(IS2)
+    # Applying logical operation and morphological opening
+    I2A1 =OAM_231216_bina(I2A);#binar(I2A) plt.imshow(I2A1)     plt.imshow(I2A)
     
-    plt.figure(figsize=(6, 5))
-    plt.imshow(image, interpolation='none')
-    plt.colorbar()
-    plt.title(title)
-    plt.axis('off')
-    plt.show()
+    # nam1=mask_paths[0]
+    # img_name2 = nam1.replace("masks.tif", "masks_I2A1.tif")
+    # imageio.imwrite(img_name2, I2A1, format='tif')
+ 
+
+    # Create a disk-shaped structuring element with radius 3
+    selem = disk(disk_size)
+    # Perform morphological opening
+    I2B = opening(I2A1, selem)
+    # plt.imshow(I2B)
+    # nam1=mask_paths[0]
+    # img_name2 = nam1.replace("masks.tif", "masks_I2B.tif")
+    # imageio.imwrite(img_name2, I2B, format='tif')
+       
+    # Morphological dilation   plt.imshow(I2B)
+    I2C = dilation(I2B, disk(disk_size))  # Adjust the disk size as needed
+    #  plt.imshow(I2C)
+    # Element-wise multiplication of I2A with I2C
+ 
+    # nam1=mask_paths[0]
+    # img_name2 = nam1.replace("masks.tif", "masks_I2C.tif")
+    # imageio.imwrite(img_name2, I2C, format='tif')
+
+    I3 = I2AA * I2C # plt.imshow(I3)
+
+    # Extract unique objects
+    objs = np.unique(I3)
+    objs = objs[1:len(objs)]
     
+    # Initialize an image of zeros with the same size as I2A
+    I4 = np.uint16(np.zeros((I3.shape[0], I3.shape[1])))
+    # Mapping the original image values where they match the unique objects
+    AZ=1
+    for obj in objs:
+        I4[I2A == obj] = AZ
+        AZ=AZ+1
+
+    # nam1=mask_paths[0]
+    # img_name2 = nam1.replace("masks.tif", "masks_I4.tif")
+    # imageio.imwrite(img_name2, I4, format='tif')
+    #     # Returning the final image  plt.imshow(I4)
+    
+    return I4
+
+
+
+
+
+# def remove_artif(I2A):  # I2A = IS2
+#     I2A = IS2.copy()
+#     plt.imshow(I2A)
+#     I2AA = np.copy(I2A)  # plt.imshow(IS2)
+#     # Applying logical operation and morphological opening
+#     I2A1 = OAM_231216_bina(I2AA)  # binar(I2A) plt.imshow(I2A1)
+#     plt.imshow(I2A1)
+#     # I2B = binary_opening(I2A1, disk(6))  # Adjust the disk size as needed
+
+#     # do opening equivalent to the disk 6 in matlab
+#     structuring_element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+#     # Perform morphological opening
+#     I2B = cv2.morphologyEx(I2A1, cv2.MORPH_OPEN, structuring_element)
+#     plt.imshow(I2B)
+
+#     # Morphological dilation   plt.imshow(I2B)
+#     I2C = dilation(I2B, disk(6))  # Adjust the disk size as needed
+#     plt.imshow(I2C)
+#     # Element-wise multiplication of I2A with I2C
+#     I3 = I2AA * I2C
+#     plt.imshow(I3)
+
+#     # Extract unique objects
+#     objs = np.unique(I3)
+#     objs = objs[1:len(objs)]
+
+#     # Initialize an image of zeros with the same size as I2A
+#     I4 = np.uint16(np.zeros((I3.shape[0], I3.shape[1])))
+#     # Mapping the original image values where they match the unique objects
+#     cnt = 1
+#     for obj in objs:
+#         I4[I2A == obj] = cnt
+#         cnt = cnt + 1
+
+#     uq4 = np.unique(I4)
+#     uq3 = np.unique(I3)
+#     diff = np.setdiff1d(uq3, uq4)
+#     plt.imshow(I4)
+
+#     # Returning the final image  plt.imshow(I4)
+
+#     return I4
+
+
+# def OAM_230919_remove_artif(I2A):  # I2A = IS2
+
+#     I2A = IS2.copy()
+#     plt.imshow(I2A)
+#     I2AA = np.copy(I2A)  # plt.imshow(IS2)
+#     # Applying logical operation and morphological opening
+#     # binar(I2A) plt.imshow(I2A1)     plt.imshow(I2AA)
+#     I2A1 = OAM_231216_bina(I2A)
+#     # I2B = binary_opening(I2A1, disk(6))  # Adjust the disk size as needed
+
+#     # do opening equivalent to the disk 6 in matlab
+#     structuring_element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+#     # Perform morphological opening
+#     I2B = cv2.morphologyEx(I2A1, cv2.MORPH_OPEN, structuring_element)
+
+#     # Morphological dilation   plt.imshow(I2B)
+#     I2C = dilation(I2B, disk(6))  # Adjust the disk size as needed
+#     #  plt.imshow(I2C)
+#     # Element-wise multiplication of I2A with I2C
+#     I3 = I2AA * I2C  # plt.imshow(I3)
+
+#     # Extract unique objects
+#     objs = np.unique(I3)
+#     objs = objs[1:len(objs)]
+
+#     # Initialize an image of zeros with the same size as I2A
+#     I4 = np.uint16(np.zeros((I3.shape[0], I3.shape[1])))
+#     # Mapping the original image values where they match the unique objects
+#     for obj in objs:
+#         I4[I2A == obj] = obj
+
+#     # Returning the final image  plt.imshow(I4)
+
+#     return I4
+
+
+# def OAM_230919_remove_artif(I2A):
+#     # I2B = binary_opening(I2A.astype(bool), structure=morphology.disk(6))
+#     # I2C = binary_dilation(I2B, structure=morphology.disk(6))
+
+#     # I3 = I2A.astype(np.uint16) * I2C.astype(np.uint16)
+#     # objs = np.unique(I3)
+
+#     # I4 = np.zeros_like(I2A)
+
+#     # for obj in objs:
+#     #     I4[I2A == obj] = obj
+
+#     # I = I4.astype(np.uint16)
+#     # return I
+#     # Applying logical operation and morphological opening
+#     I2A = IS2.copy()
+#     plt.imshow(I2A)
+#     I2AA = OAM_231216_bina(I2A)
+#     plt.imshow(I2AA)
+#     structuring_element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+#     # Perform morphological opening
+#     I2B = cv2.morphologyEx(I2AA, cv2.MORPH_OPEN, structuring_element)
+#     plt.imshow(I2B)
+
+#     plt.imshow(I2B - I2A)
+#     I22 = I2B + I2A
+
+#     I2C = dilation(I2B, disk(6))
+#     plt.imshow(I2C)
+
+#     # I2B = binary_opening(I2A > 0, disk(5.95))
+#     # plt.imshow(I2B)
+
+#     # # Morphological dilation
+#     # I2C = dilation(I2B, disk(5.95))
+#     # Element-wise multiplication of I2A with I2C
+#     I3 = I2A * I2C
+#     plt.imshow(I3)
+#     # Extract unique objects
+#     objs = np.unique(I3)
+#     # objs = objs[1:len(objs)]
+
+#     # Initialize an image of zeros with the same size as I2A
+#     I4 = np.zeros_like(I2A)
+
+#     # Mapping the original image values where they match the unique objects
+#     for obj in objs:
+#         I4[I2A == obj] = obj
+
+#     # Returning the final image
+
+#     return img_as_uint(I4)
+
+
 def OAM_23121_tp3(M, cel, no_obj1, A):
-    tp3 = np.array(M)  # Ensure M is a numpy array
+    tp3 = M.copy()
     tp3[tp3 == cel] = no_obj1 + A
     return tp3
-    
-    
-"""
-1. Init loaded Variables
-"""
-
-image_files = [file for file in os.listdir(input_images) if file.endswith('_ART_masks.tif')]
-sorted_files = sorted(image_files, key=key)
-mask_paths = [os.path.join(input_images, img_name) for img_name in sorted_files]
-
-"""
- 2. load first mask and allocate 
-"""   
-#m0 = PIL.Image.open(mask_paths[0]).convert("L") # zero start #
-m0 = Image.fromarray(np.array(Image.open(mask_paths[0])).astype("uint16")) #LOAD AS UINT16
-IS1 = np.array(m0) # image to array # plt.imshow(IS1)
-IblankG=np.zeros(IS1.shape, dtype="uint16") # allocate
-masks = np.uint16(np.zeros((IS1.shape[0], IS1.shape[1], len(mask_paths)))) # allocate
-masks[:,:,0]= IS1
 
 
-IblankG = np.zeros_like(IS1, dtype=np.uint16)
-glLen = len(mask_paths) - 1
-for it0 in range(1,len(mask_paths)):
+pos = 'Pos0_2'
+# path to the segmented tet masks
+path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Python_Track_Test/Pro/'
+sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res/'
+art_mask_path = path
+file_list = sorted(glob(os.path.join(art_mask_path, '*_Ph3_000_cp_masks.tif')))
+mm = range(len(file_list))  # time points to track
+
+# Load the first mask that begins the indexing for all the cells; IS1 is updated to most recently processed tracked mask at the end of it0
+# Start tracking at first timepoint
+IS1 = io.imread(file_list[0]).astype(np.uint16)
+# Remove artifacts and start tracking at first timepoint
+IS1 = OAM_230919_remove_artif(IS1, disk_size)
+# plt.imshow(IS1)
+# Contains the re-labeled masks according to labels in the last tp mask
+masks = np.zeros((IS1.shape[0], IS1.shape[1], len(mm)), dtype=np.uint16)
+# First timepoint defines indexing; IS1 is first segmentation output
+masks[:, :, mm[0]] = IS1
+
+# Allocate a mask for cells where there's a gap in the segmentation; IblankG is updated within the loops it1 & itG
+IblankG = np.zeros_like(IS1)
+tic = time.time()
+for it0 in mm:
     print(f'it0={it0}')
 
-    # Loading future cellpose mask
-    m0b =  Image.fromarray(np.array(Image.open(mask_paths[it0])).astype("uint16"))
-    print(f"Processing image: {mask_paths[it0]}")
-    #IS2 = masks[:, :, 0].astype(np.uint16) #Shape of IS2 = 126*692 if im_no1-1 is taken
-    IS2 = np.array(m0b)
+    # Load the future cellpose mask, IS2: IS2 is the current image being re-indexed for tracking
+    # it0 = 1
+    IS2 = io.imread(file_list[it0]).astype(np.uint16)
+    # plt.imshow(IS2)
+    IS22 = IS2.copy()
+    IS2 = OAM_230919_remove_artif(IS2, disk_size)  # Remove artifacts
+    # plt.imshow(IS2)
+    # uq22 = np.unique(IS22)
+    # uq2 = np.unique(IS2)
+    # uq222 = np.setdiff1d(uq2, uq22)
+    # IS33 = IS22 - IS2
+    # uq33 = np.unique(IS33)
+    IS2C = IS2.copy()
+    IS1B = OAM_231216_bina(IS1)
+    # plt.imshow(IS1B)
     
-    print("Shape of IS2:", IS2.shape)
-    print("Number of dimensions in IS2:", IS2.ndim)
+    # save_path = os.path.join(sav_path, f'IS1B_{it0}.mat')
+    # savemat(save_path, {
+    #     'IS1B_py': IS1B,
+    # })
 
-    IS2 = remove_artif(IS2)
-    #display_image(IS2)
-
-    IS2C = IS2
-    IS1B = binar(IS1)
-    # The multiplication
-    IS3 = np.multiply(IS1B,IS2)
+    IS3 = IS1B.astype(np.uint16) * IS2
+    # plt.imshow(IS3)
+    
+    # save_path = os.path.join(sav_path, f'IS3_{it0}.mat')
+    # savemat(save_path, {
+    #     'IS3_py': IS3,
+    # })
     
     tr_cells = np.unique(IS1[IS1 != 0])
+    # tr_cells = tr_cells[1:]
     gap_cells = np.unique(IblankG[IblankG != 0])
-    cells_tr = np.concatenate((tr_cells, gap_cells))
+    # gap_cells = gap_cells[1:]
+    cells_tr = np.concatenate([tr_cells, gap_cells])
     
-    Iblank0 = np.zeros_like(IS1, dtype=np.uint16)
+    # save_path = os.path.join(sav_path, f'cells_tr_py_{it0}.mat')
+    # savemat(save_path, {
+    #     'cells_tr1_py': cells_tr,
+    #     'gap_cells_py': gap_cells,
+    #     'tr_cells_py':tr_cells
+    # })
 
-    # Tracking cells across images
-    if cells_tr.size != 0:
+    # Allocate space for the re-indexed IS2 according to tracking
+    Iblank0 = np.zeros_like(IS1)
+    # is2ind_arr = []
+    if cells_tr.sum() != 0:  # This is required in case the mask goes blank because cells mate immediately during germination
         for it1 in sorted(cells_tr):
             IS5 = (IS1 == it1)
-            IS5=IS5.astype(np.uint16)
-            IS56 = thin(IS5,1) # plt.imshow(IS56)  #  sum(sum(IS56))
-            IS6A = np.multiply(IS56,IS3)
-    
-            if np.sum(IS5) == 0:
-                IS5 = (IblankG == it1)
-                IS6A = np.multiply(IS56,IS2C)
+            IS5A = IS5.copy()
+            # plt.imshow(IS5A)
+            IS6AA = thin(IS5A, 1).astype(np.uint16)
+            IS6A = np.multiply(IS6AA, IS3)
+            # sum(sum(IS6A))
+            # plt.imshow(IS6A)
+            # plt.imshow(IS3)
+            # IS6A = morphology.thin(IS5).astype(np.uint16) * IS3
+            # IS6A = np.multiply(IS6AA, IS3)
+            # plt.imshow(IS6A)
+            
+            # save_path = os.path.join(sav_path, f'cells_tr_{it0}.mat')
+            # savemat(save_path, {
+            #     'cells_tr1': cells_tr,
+            #     'tr_cells1':tr_cells,
+            #     'IS5_1': IS5
+            # })
+
+            if IS5A.sum() == 0:  # If the cell was missing in past mask; look at the gaps in segmentation otherwise continue to look at the past mask
+                IS5A = (IblankG == it1)
+                IS5AA = IS5A.copy()
+                # plt.imshow(IS5A)
+                IS5AB = thin(IS5AA, 1).astype(np.uint16)
+                IS6A = np.multiply(IS5AB, IS2C)
+                # Remove the cell from segmentation gap mask - it'll be in the updated past mask for next round of processing
                 IblankG[IblankG == it1] = 0
-    
-            # Update masks to avoid overlapping cells
-            if np.sum(IS6A) != 0:
-                IS2ind = np.bincount(IS6A.astype(int).flat)[1:].argmax() + 1
-                #IS2ind=(statistics.mode(IS6A[np.nonzero(IS6A)]))
+
+            if IS6A.sum() != 0:
+                IS2ind = np.uint16((np.bincount(IS6A[IS6A != 0]).argmax()))
+                # is2ind_arr.append(IS2ind);
                 Iblank0[IS2 == IS2ind] = it1
+                # plt.imshow(Iblank0)
+                # print(sum(sum(Iblank0)))
                 IS3[IS3 == IS2ind] = 0
+                # plt.imshow(IS3)
                 IS2C[IS2 == IS2ind] = 0
+                # plt.imshow(IS2C)
+                # save_path = os.path.join(sav_path, f'IS3_IS2c_{it0}.mat')
+                # savemat(save_path, {
+                #     "Iblank0_py": Iblank0,
+                #     "IS3_py": IS3,
+                #     "IS2C_py": IS2C,
+                # })
         
+        # plt.imshow(Iblank0)
+        # plt.imshow(IS2)
+        # plt.imshow(IS3);
+        # save_path = os.path.join(sav_path, f'IS3_IS2c_{it0}.mat')
+        # savemat(save_path, {
+        #     "Iblank0_py": Iblank0,
+        #     "IS3_py": IS3,
+        #     "IS2_py": IS2,
+        # })
 
-    # Detect segmentation gaps
-    seg_gap = np.setdiff1d(tr_cells, np.unique(Iblank0))
-    if seg_gap.size != 0:
-        for itG in seg_gap:
-            IblankG[IS1 == itG] = itG
+        seg_gap = np.setdiff1d(tr_cells, np.unique(Iblank0))
+        # seg_gap = seg_gap[1:]
 
-    # Detect new cells entering the frame
-    Iblank0B = np.copy(Iblank0)     
-    Iblank0B[np.nonzero(Iblank0B)] = 1;   # plt.imshow(Iblank0B)
-    Iblank0B = (Iblank0B < 0.5).astype(np.uint16)
-    #ISB = IS2 * (~Iblank0B).astype(np.uint16)
-    ISB = np.multiply(IS2,Iblank0B)
-    newcells = np.unique(ISB)
-    Iblank=Iblank0;
-    newcells = newcells[1:len(newcells)]
-    A = 1
-    if newcells.size != 0:
-        """
-        if cells_tr.size > 0:
-            next_index = np.max(cells_tr) + A
-        else:
-            next_index = A  # Adjust this depending on how you want to handle this edge case
-        """
-        for it2 in newcells:
-            Iblank[IS2 == it2] = max(cells_tr)+A;
-            A += 1
+        if seg_gap.size > 0:
+            for itG in seg_gap:
+                # itG = 16
+                IblankG[IS1 == itG] = itG
+        # plt.imshow(IblankG)
 
-    masks[:, :, it0] = Iblank
-    IS1 = masks[:, :, it0]
+        Iblank0B = Iblank0.copy()
+        Iblank0B[Iblank0 != 0] = 1
+        # plt.imshow(Iblank0B)
+        ISB = IS2 * (1 - Iblank0B).astype(np.uint16)
+        # plt.imshow(ISB)
+
+        newcells = np.unique(ISB[ISB != 0])
+        # newcells = newcells[1:]
+        Iblank = Iblank0.copy()
+        A = 1
+
+        if newcells.size > 0:
+            for it2 in newcells:
+                Iblank[IS2 == it2] = max(cells_tr) + A
+                A += 1
+        
+        # plt.imshow(Iblank);
+        masks[:, :, mm[it0]] = Iblank.astype(np.uint16)
+        # plt.imshow(masks[:, :, mm[it0]])
+        IS1 = masks[:, :, mm[it0]]
+    else:
+        masks[:, :, mm[it0]] = IS2
+        IS1 = IS2
+
+toc = time.time()
+print(f'Elapsed time is {toc - tic} seconds.')
+for it4 in range(len(file_list)):
+    plt.imshow(masks[:, :, it4])
+
+# msum = [];
+# for it4 in range(len(file_list)):
+#     msum.append(sum(sum(masks[:,:,it4])));
 
 
+"""
+Vizualize All Ob
+"""
+obj = np.unique(masks)
+no_obj = int(np.max(obj))
+im_no = masks.shape[2]
+all_ob = np.zeros((no_obj, im_no))
 
-for it4 in range(1,glLen): 
-    plt.imshow(masks[:,:,it4])
+tic = time.time()
+
+for ccell in range(1, no_obj + 1):
+    Maa = (masks == ccell)
+
+    for i in range(im_no):
+        pix = np.sum(Maa[:, :, i])
+        all_ob[ccell-1, i] = pix
+
+plt.figure()
+plt.imshow(all_ob, aspect='auto', cmap='viridis')
+plt.title("all_obj")
+plt.xlabel("Time")
+plt.ylabel("Cells")
+plt.show()
+
 
 """
 Tracks as a tensor
@@ -156,364 +428,271 @@ im_no = masks.shape[2]
 # Find all unique non-zero cell identifiers across all time points
 ccell2 = np.unique(masks[masks != 0])
 # Initialize Mask2 with zeros of the same shape as masks
-Mask2 = np.zeros_like(masks)
+# Mask2 = np.zeros_like(masks)
+Mask2 = np.zeros((masks.shape[0], masks.shape[1], masks.shape[2]))
 
 
-#TODO: instead of np use cpypy
-
+# TODO: instead of np use cpypy
 # Process each unique cell ID
-for itt3 in range(len(ccell2)):
-    cell_id = ccell2[itt3]
-    # Find all indices where the current cell ID is present
-    pix3 = np.where(masks == cell_id)
-    # Assign a new sequential ID to these positions in Mask2
-    Mask2[pix3] = itt3 + 1  # +1 to make IDs 1-based like MATLAB if needed
+for itt3 in range(len(ccell2)):  # cells
+    pix3 = np.where(masks == ccell2[itt3])
+    Mask2[pix3] = itt3 + 1  # ID starts from 1
 
-    # Optional: print the current iteration's progress
-    print("Processing cell ID:", itt3 + 1, "out of", len(ccell2))
+for it4 in range(1, len(file_list)):
+    plt.imshow(Mask2[:, :, it4])
 
 
+save_path = os.path.join(sav_path, 'Mask2_py.mat')
+savemat(save_path, {
+    'Mask2_py': Mask2,
+})
 """
 Get Cell Presence
 """
 
+# Get cell presence
 Mask3 = Mask2.copy()
-numbM = im_no  # Number of time points, should be defined previously as masks.shape[2]
+numbM = im_no
+obj = np.unique(Mask3)
+no_obj1 = int(obj.max())
+A = 1
 
-obj = np.uint16((np.unique(Mask3)))  # Unique cell identifiers
+tp_im = np.zeros((no_obj1, im_no))
+
+for cel in range(1, no_obj1+1):
+    Ma = (Mask3 == cel)
+
+    for ih in range(numbM):
+        if Ma[:, :, ih].sum() != 0:
+            tp_im[cel-1, ih] = 1
 
 
-no_obj1 = int(np.max(obj))  # Maximum cell identifier
+plt.figure()
+plt.imshow(tp_im, aspect='auto')
+plt.title("Cell Presence Over Time")
+plt.xlabel("Time")
+plt.ylabel("Cells")
+plt.show()
 
-# Timing start
-start_time = time.time()
+# right
 
-# Initialize the presence matrix tp_im with zeros
-tp_im = np.zeros((no_obj1, numbM), dtype=np.float64)
-
-print(tp_im)
-
-# Loop over each cell to determine its presence across time points
-for cel in range(1, no_obj1 + 1):  # Python's range is exclusive, so +1 to include no_obj1
-    Ma = (Mask3 == cel)  # Create a mask for the current cell
-    for ih in range(numbM):  # Loop over each time point
-        if np.sum(Ma[:, :, ih]) != 0:  # Check if the cell is present at this time point
-            tp_im[cel - 1, ih] = 1  # Update tp_im, -1 for 0-based indexing in Python
-
-    # Optional: Print the current cell being processed
-    print(f"Processing cell: {cel}")
-
-# Print elapsed time
-print(f"Elapsed time: {time.time() - start_time} seconds.")
-
-"""
-data = [
-    [1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 0, 0, 0, 1, 1],
-    [0, 0, 1, 1, 0, 0, 0],
-    [0, 1, 0, 1, 1, 1, 1]
-]
-
-# Convert the list of lists to a NumPy array of float64 type
-tp_im = np.array(data, dtype=np.float64)
-"""
-
-"""
-Split Inturrupted Time Series
-"""
-start_time = time.time()
-#numbM -= 1
-numbM = Mask3.shape[2] - 1;
-for cel in range(0, np.max(obj)):
-    print(cel)
-    tp_im2 = np.diff(tp_im[cel, :]);
-
+tic = time.time()
+for cel in range(1, no_obj1+1):
+    tp_im2 = np.diff(tp_im[cel-1, :])
     tp1 = np.where(tp_im2 == 1)[0]
     tp2 = np.where(tp_im2 == -1)[0]
-
-    maxp = np.uint16(np.sum(np.sum(Mask3[:, :, numbM] == cel)))
+    maxp = (Mask3[:, :, numbM - 1] == cel).sum()
 
     if len(tp1) == 1 and len(tp2) == 1 and maxp != 0:  # has one interruption
         for itx in range(tp1[0], numbM):
             tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
             Mask3[:, :, itx] = tp3
         no_obj1 += A
-
+    
     elif len(tp1) == 1 and len(tp2) == 1 and maxp == 0:  # has one interruption
         pass
-
+    
     elif len(tp1) == len(tp2) + 1 and maxp != 0:
         tp2 = np.append(tp2, numbM)
-        for itb in range(1, len(tp1)):
-            for itx in range(tp1[itb] + 1, tp2[itb] + 1):
+        for itb in range(1, len(tp1)):  # starts at 2 because the first cell index remains unchanged
+            for itx in range(tp1[itb] + 1, tp2[itb]):
                 tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
                 Mask3[:, :, itx] = tp3
             no_obj1 += A
-
-    elif len(tp1) == 0 or len(tp2) == 0:  # it's a normal cell, it's born and stays until the end
+    
+    elif len(tp2) == 0 or len(tp1) == 0:  # it's a normal cell, it's born and stays until the end
         pass
-
+    
     elif len(tp1) == len(tp2):
         if tp1[0] > tp2[0]:
             tp2 = np.append(tp2, numbM)
             for itb in range(len(tp1)):
-                for itx in range(tp1[itb] + 1, tp2[itb + 1] + 1):
+                for itx in range(tp1[itb] + 1, tp2[itb + 1]):
                     tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
                     Mask3[:, :, itx] = tp3
                 no_obj1 += A
         elif tp1[0] < tp2[0]:
             for itb in range(1, len(tp1)):
-                for itx in range(tp1[itb] + 1, tp2[itb] + 1):
+                for itx in range(tp1[itb] + 1, tp2[itb]):
                     tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
                     Mask3[:, :, itx] = tp3
                 no_obj1 += A
         elif len(tp2) > 1:
             for itb in range(1, len(tp1)):
-                for itx in range(tp1[itb] + 1, tp2[itb] + 1):
+                for itx in range(tp1[itb] + 1, tp2[itb]):
                     tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
                     Mask3[:, :, itx] = tp3
                 no_obj1 += A
+toc = time.time()
+print(f'Elapsed time is {toc - tic} seconds.')
 
-print(f"Time taken: {time.time() - start_time} seconds")
+for it4 in range(len(file_list)):
+    plt.imshow(Mask3[:, :, it4])
+
+numbM = im_no
+obj = np.unique(Mask3)
+
+# Get cell presence 2
+tp_im = np.zeros((int(max(obj)), im_no))
+
+for cel in range(1, int(max(obj)) + 1):
+    Ma = (Mask3 == cel)
+
+    for ih in range(numbM):
+        if Ma[:, :, ih].sum() != 0:
+            tp_im[cel-1, ih] = 1
+
 
 plt.figure()
-plt.imshow(tp_im, aspect='auto', cmap='viridis')
+plt.imshow(tp_im, aspect='auto')
 plt.title("Cell Presence Over Time")
 plt.xlabel("Time")
 plt.ylabel("Cells")
 plt.show()
 
-"""
-start_time = time.time()
+# save_path = os.path.join(sav_path, 'tp_im_py.mat')
+# savemat(save_path, {
+#     'tp_im_py': tp_im,
+#     'obj_py':obj
+# })
 
-numbM = Mask3.shape[2]  # Should match the MATLAB 'numbM'
-
-for cel in range(1, int(np.max(obj)) + 1):
-    print(cel)
-    tp_im2 = np.diff(tp_im[cel - 1, :], axis=0)
-
-    tp1 = np.where(tp_im2 == 1)[0]
-    tp2 = np.where(tp_im2 == -1)[0]
-
-    maxp = np.sum(Mask3[:, :, numbM - 1] == cel)
-
-    if len(tp1) == 1 and len(tp2) == 1 and maxp != 0:  # has one interruption
-        for itx in range(tp1[0], numbM):
-            tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-            Mask3[:, :, itx] = tp3
-        no_obj1 += A
-
-    elif len(tp1) == 1 and len(tp2) == 1 and maxp == 0:  # has one interruption and ends
-        pass
-
-    elif len(tp1) == len(tp2) + 1 and maxp != 0:  # has one more tp1
-        tp2 = np.append(tp2, numbM - 1)
-        for itb in range(1, len(tp1)):
-            for itx in range(tp1[itb] + 1, tp2[itb] + 1):
-                tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-                Mask3[:, :, itx] = tp3
-        no_obj1 += A
-
-    elif len(tp1) == len(tp2):  # Normal cell or has one interruption
-        if len(tp1) > 0 and len(tp2) > 0:  # Check if tp1 and tp2 are not empty
-            if tp1[0] > tp2[0]:
-                tp2 = np.append(tp2, numbM - 1)
-                for itb in range(0, len(tp1)):
-                    for itx in range(tp1[itb] + 1, tp2[itb + 1] + 1):
-                        tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-                        Mask3[:, :, itx] = tp3
-                no_obj1 += A
-            elif tp1[0] < tp2[0]:
-                for itb in range(1, len(tp1)):
-                    for itx in range(tp1[itb] + 1, tp2[itb] + 1):
-                        tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-                        Mask3[:, :, itx] = tp3
-                no_obj1 += A
-        elif len(tp2) > 1:  # If it has multiple interruptions
-            for itb in range(1, len(tp1)):
-                for itx in range(tp1[itb] + 1, tp2[itb] + 1):
-                    tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-                    Mask3[:, :, itx] = tp3
-            no_obj1 += A
-
-print(f"Elapsed time: {time.time() - start_time} seconds.")
-"""
-
-"""
-Get Cell Presence 2
-"""
-numbM = Mask3.shape[2]
-obj = np.unique(Mask3)
-
-tp_im = np.zeros((obj.max(), numbM))
-
-start_time = time.time()
-
-for cel in range(1, obj.max() + 1):
-    Ma = (Mask3 == cel)
-    for ih in range(numbM):
-        if np.sum(Ma[:, :, ih]) != 0:
-            tp_im[cel - 1, ih] = 1
-
-end_time = time.time()
-print(f"Elapsed time: {end_time - start_time:.6f} seconds")
+#done
 
 # Get good cells
 cell_artifacts = np.zeros(tp_im.shape[0])
-
+# goodcells = np.setdiff1d(range(
+#     1, tp_im.shape[0] + 1), np.where((tp_im[:, 1:] - tp_im[:, :-1]) == -1)[0] + 1)
 for it05 in range(tp_im.shape[0]):
-    arti = np.where(np.diff(tp_im[it05, :]) == -1)[0]
-    if arti.size != 0:
-        cell_artifacts[it05] = it05
+    arti = np.where(np.diff(tp_im[it05, :]) == -1)[0]  # Find artifacts in the time series
 
-goodcells = np.setdiff1d(np.arange(tp_im.shape[0]), cell_artifacts)
+    if arti.size > 0:
+        cell_artifacts[it05] = it05 + 1  # Mark cells with artifacts
 
-print("Good cells:", goodcells)
+goodcells = np.setdiff1d(np.arange(1, tp_im.shape[0] + 1), cell_artifacts[cell_artifacts != 0])  # Identify good cells
 
-#####
-"""
-Track as Tensor 2
-"""
 
+# display tp_im
+
+# Tracks as a tensor 2
 im_no = Mask3.shape[2]
-Mask4 = np.zeros_like(masks)  # Initialize Mask4 with zeros
+Mask4 = np.zeros((masks.shape[0], masks.shape[1], masks.shape[2]))
 
-for itt3 in range(len(goodcells)):  # Iterate over good cells
-    pix3 = np.where(Mask3 == goodcells[itt3])  # Find indices of good cells in Mask3
-    Mask4[pix3] = itt3 + 1  # Re-assign ID
+for itt3 in range(goodcells.size):
+    pix3 = np.where(Mask3 == goodcells[itt3])
+    Mask4[pix3] = itt3 + 1  # IDs start from 1
 
-print("Updated Mask4:")
-print(Mask4)
-
-
-for it4 in range(1,glLen): 
-    plt.imshow(Mask4[:,:,it4])
-
-"""
-Get Cell Presence 3
-"""
+# Get cell presence 3
 Mask5 = Mask4.copy()
-numbM = Mask4.shape[2]
+numbM = im_no
 obj = np.unique(Mask4)
+no_obj1 = int(obj.max())
+A = 1
 
-start_time = time.time()
+tp_im = np.zeros((no_obj1, im_no))
 
-tp_im = np.zeros((obj.max(), numbM))
-
-for cel in range(1, obj.max() + 1):
+for cel in range(1, no_obj1+1):
     Ma = (Mask5 == cel)
+
     for ih in range(numbM):
-        if np.sum(Ma[:, :, ih]) != 0:
-            tp_im[cel - 1, ih] = 1
+        if Ma[:, :, ih].sum() != 0:
+            tp_im[cel-1, ih] = 1
 
-end_time = time.time()
-print(f"Elapsed time: {end_time - start_time:.6f} seconds")
+# plt.figure()
+# plt.imshow(tp_im, aspect='auto')
+# plt.title("Cell Presence Over Time")
+# plt.xlabel("Time")
+# plt.ylabel("Cells")
+# plt.show()
 
+#done
 
-for it4 in range(1,glLen): 
-    plt.imshow(Mask5[:,:,it4])
+# cell_exists0 = np.zeros((2, tp_im.shape[0]))
 
+# for itt2 in range(tp_im.shape[0]):
+#     cell_exists0[0, itt2] = np.argmax(tp_im[itt2, :] != 0)
+#     cell_exists0[1, itt2] = len(tp_im[itt2, :]) - \
+#         1 - np.argmax(tp_im[itt2, ::-1] != 0)
 
-# Calculate first and last detection
+# sortOrder = np.argsort(cell_exists0[0, :])
+# cell_exists = cell_exists0[:, sortOrder]
+
 cell_exists0 = np.zeros((2, tp_im.shape[0]))
 
+# Calculate the first and last detection
 for itt2 in range(tp_im.shape[0]):
-    cell_exists0[0, itt2] = np.argmax(tp_im[itt2, :] != 0)
-    cell_exists0[1, itt2] = len(tp_im[itt2, :]) - 1 - np.argmax(tp_im[itt2, ::-1] != 0)
+    first_detection = np.argmax(tp_im[itt2, :] != 0)
+    last_detection = tp_im.shape[1] - np.argmax(tp_im[itt2, ::-1] != 0) - 1
+    cell_exists0[:, itt2] = [first_detection, last_detection]
 
-# Sort the cells by their first detection time
-sortOrder, _ = zip(*sorted(enumerate(cell_exists0[0, :]), key=lambda x: x[1]))
-sortOrder = np.array(sortOrder)
-
+# Sort based on the first detection
+sortOrder = np.argsort(cell_exists0[0, :]) #check the sort !TODO:
+sorted_order = sorted(sortOrder)    
 cell_exists = cell_exists0[:, sortOrder]
+# sortOrder = sorted(sortOrder)
+# sortOrder.append(len(sortOrder))
+# sortOrder = sortOrder[1:]
+
+# save_path = os.path.join(sav_path, 'tp_im_py.mat')
+# savemat(save_path, {
+#     'sortOrder_py': sortOrder
+# })
+
+# for itt2 in range(tp_im.shape[0]):
+#     first_nonzero = np.argmax(tp_im[itt2, :] != 0)
+#     last_nonzero = len(tp_im[itt2, :]) - np.argmax(tp_im[itt2, ::-1] != 0) - 1
+#     cell_exists0[:, itt2] = [first_nonzero, last_nonzero]  # Calculate the first and last detection
+
+# sortOrder = np.argsort(cell_exists0[0, :])
+
+# cell_exists = cell_exists0[:, sortOrder]
 
 # Re-label
 Mask6 = np.zeros_like(Mask5)
+    
 
 for itt3 in range(len(sortOrder)):
-    pix3 = np.where(Mask5 == sortOrder[itt3] + 1)  # Adding 1 to match MATLAB's 1-based indexing
-    Mask6[pix3] = itt3 + 1  # Assign new labels
+    pix3 = (Mask5 == sortOrder[itt3]+1)  # here
+    Mask6[pix3] = itt3 + 1# reassign
 
-print("Updated Mask6:")
-print(Mask6)
-
-
-for it4 in range(1,glLen): 
-    plt.imshow(Mask6[:,:,it4])
-
-
-"""
-Get Cell Presence 3-2
-"""
+# Get cell presence 3
 Mask7 = Mask6.copy()
-numbM = Mask6.shape[2]
+numbM = im_no
 obj = np.unique(Mask6)
-
-# Visualize timeseries of masks (view with caution)
-plt.figure()
-plt.imshow(np.concatenate(masks, axis=1))  # Combining masks for visualization
-plt.title("Timeseries of Masks")
-plt.show()
-
-no_obj1 = obj.max()
+no_obj1 = int(obj.max())
 A = 1
 
-start_time = time.time()
+tic = time.time()
+tp_im = np.zeros((no_obj1, im_no))
+for cel in range(1, no_obj1 + 1):
+    tp_im[cel - 1, :] = ((Mask7 == cel).sum(axis=(0, 1)) != 0).astype(int)
+    if cel > 1 and np.sum(tp_im[cel - 1]) == 0:
+            tp_im[cel - 1] = tp_im[cel - 2]
+toc = time.time()
+print(f'Elapsed time is {toc - tic} seconds.')
 
-tp_im = np.zeros((obj.max(), numbM))
-
-for cel in range(1, obj.max() + 1):
-    Ma = (Mask7 == cel)
-    for ih in range(numbM):
-        if np.sum(Ma[:, :, ih]) != 0:
-            tp_im[cel - 1, ih] = 1
-
-end_time = time.time()
-print(f"Elapsed time: {end_time - start_time:.6f} seconds")
-
-
-for it4 in range(1,glLen): 
-    plt.imshow(Mask7[it4])
-
-
-# Visualization of tp_im
 plt.figure()
-plt.imshow(tp_im, aspect='auto', cmap='viridis')
+plt.imshow(tp_im, aspect='auto')
 plt.title("Cell Presence Over Time")
 plt.xlabel("Time")
 plt.ylabel("Cells")
 plt.show()
 
 
-#####
-plt.figure(figsize=(12, 6))
-plt.imshow(tp_im, aspect='auto', cmap='viridis')
-plt.colorbar(label='Pixel Count')
-plt.xlabel('Image Number (Time)')
-plt.ylabel('Object Number')
-plt.title('tp_im')
-plt.show()   
-
-
-""" 
-Calculate Size
-"""
-no_obj = np.max(np.unique(Mask3))
+# Calculate size
+obj = np.unique(Mask7)
+no_obj = int(np.max(obj))
 im_no = Mask3.shape[2]
 all_ob = np.zeros((no_obj, im_no))
 
-start_time = time.time()
-
+tic = time.time()
 for ccell in range(1, no_obj + 1):
-    Maa = (Mask3 == ccell)
-    for io in range(im_no):
-        pix = np.sum(Maa[:, :, io])
-        all_ob[ccell - 1, io] = pix
+    all_ob[ccell - 1, :] = np.sum(Mask7 == ccell + 1, axis=(0, 1))
+    if ccell > 1 and not np.any(all_ob[ccell - 1]):
+        all_ob[ccell - 1] = all_ob[ccell - 2]
+toc = time.time()
 
-end_time = time.time()
-print(f"Elapsed time: {end_time - start_time:.6f} seconds")
+print(f'Elapsed time is {toc - tic} seconds.')
 
-# Visualization of all_ob
 plt.figure()
 plt.imshow(all_ob, aspect='auto', cmap='viridis')
 plt.title("Cell Sizes Over Time")
@@ -521,83 +700,20 @@ plt.xlabel("Time")
 plt.ylabel("Cells")
 plt.show()
 
-for it4 in range(1,glLen): 
-    plt.imshow(Mask7[:,:,it4])
-
-####
-# Calculate Size
-uniq = np.unique(Mask7)
-no_obj2 = int(np.max(np.unique(Mask7)))
-all_ob = np.zeros((no_obj2, im_no))
-
-# Process Mask3 and calculate pixel sums
-start_time = time.time()
-for ccell in range(no_obj2):
-    Maa = (Mask7
-           == (ccell + 1))
-    for x in range(im_no):
-        pix = np.sum(Maa[:, :, x])
-        all_ob[ccell, x] = pix
-        
-
-for it4 in range(1,glLen): 
-    plt.imshow(Mask7[:,:,it4])
-
-        
-# Visualization of all_ob
-plt.figure(figsize=(12, 6))
-plt.imshow(all_ob, aspect='auto', cmap='viridis')
-plt.colorbar(label='Pixel Count')
-plt.xlabel('Image Number (Time)')
-plt.ylabel('Object Number')
-plt.title('Pixel Counts of Objects Over Time')
-plt.show()        
-        
-plt.figure(figsize=(12, 6))
-for ccell in range(no_obj2):
-    plt.plot(all_ob[ccell], label=f'Object {ccell + 1}')
-
-plt.xlabel('Image Number (Time)')
-plt.ylabel('Pixel Count')
-plt.title('Pixel Counts of Objects Over Time')
-plt.legend()
-plt.show()
-        
-print("Elapsed time:", time.time() - start_time)
-
-# Find the first and last non-zero values in all_ob
-cell_exists = np.zeros((2, all_ob.shape[0]))
-
-for itt2 in range(all_ob.shape[0]):
-    non_zero_indices = np.nonzero(all_ob[itt2, :])[0]
-    if non_zero_indices.size > 0:
-        cell_exists[:, itt2] = [non_zero_indices[0] + 1, non_zero_indices[-1] + 1]
-
-# Convert Mask3 to a list of 2D arrays
-Mask3 = [Mask3[:, :, its] for its in range(Mask3.shape[2])]
-
-# Save the results
-savemat(f"{sav_path}{pos}_ART_Track.mat", {
-    'all_ob': all_ob,
-    'Mask3': Mask3,
-    'no_obj': no_obj2,
-    'im_no': im_no,
+save_path = os.path.join(sav_path, f'ART_Track0_{im_no}.mat')
+savemat(save_path, {
+    'all_ob_py': all_ob,
+    'Mask7_py': Mask7,
+    'no_obj_py': no_obj,
+    'im_no_py': im_no,
+    'ccell2_py': ccell2,
     'cell_exists': cell_exists,
-    # Add other variables as needed
+    'cell_prob': cell_prob,
+    'Arti_v': Arti_v,
+    'flow_threshold': flow_threshold
 })
 
+# Save results
+# np.savez_compressed(os.path.join(sav_path, f'{pos}_ART_Track0_{im_no}'), all_ob=all_ob, Mask7=Mask7, no_obj=no_obj, im_no=im_no, ccell2=ccell2, cell_exists=cell_exists, cell_prob=cell_prob, Arti_v=Arti_v, flow_threshold=flow_threshold)
 
-
-
-
-
-
-    
-    
-
-
-
-
-
-
-
+print(pos)
