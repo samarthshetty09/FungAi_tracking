@@ -154,7 +154,7 @@ while xx != -1:
                     pix4 = np.where(I2 == p2)
                     I22[pix4] = ity + 1
             else:
-                I22 = I2
+                I22 = I2.copy()
             IS61 = TETC[0][im_no]
             IS61[pix] = ccel
             TETC[0][im_no] = IS61.astype(np.uint16)
@@ -169,6 +169,7 @@ while xx != -1:
     ccel += 1
     rang2 = range(xx, len(tet_masks))
     print(xx)
+
 
 ccel -= 1  # number of cells tracked
 
@@ -274,12 +275,6 @@ def replace_none_with_empty_array(data):
         return np.array([])
     else:
         return data
-    
-TETmasks = replace_none_with_empty_array(TETmasks)
-
-            sio.savemat(os.path.join(sav_path, "art_py.mat"), {
-                'all_ob_py': all_ob
-            })
 
 # Save results
 sio.savemat(sav_path + '_TET_Track.mat', {
