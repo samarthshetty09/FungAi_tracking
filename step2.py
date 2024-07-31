@@ -1,4 +1,5 @@
 import os
+import math
 import numpy as np
 import re
 import scipy.io as sio
@@ -18,11 +19,11 @@ thresh = 80
 shock_period = [122, 134]
 
 pos = 'Pos0_2'
-path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/{pos}/'
+path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Pos13_1_B/'
 sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res'
 
 # Load image file names
-file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_TET_masks.tif')]
+file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_MAT15_masks.tif')]
 file_numbers = np.zeros(len(file_names), dtype=int)
 
 # Extract file numbers
@@ -91,7 +92,7 @@ while xx != -1:
     for im_no in rang2:
         # im_no = 72
         I2 = tet_masks[im_no] if ccel == 1 else TETC[1][im_no]
-        if I2 is None:
+        if I2 is None or I2.size == 0:
             continue
         if im_no == min(rang2):
             ind1 = np.unique(I2)[1:]  # Exclude background
@@ -105,7 +106,7 @@ while xx != -1:
         I3B = I3A.astype(np.uint16) * I2A.astype(np.uint16)
         ind = mode(I3B[I3B != 0])[0]
 
-        if ind == 0 and ccel == 1:
+        if (ind == 0 or math.isnan(ind)) and ccel == 1:
             k += 1
             if k > thresh_next_cell:
                 for im_no_1 in range(im_no, rang[-1] + 1):
@@ -117,7 +118,7 @@ while xx != -1:
                 TETC[0][im_no] = I3B.copy()
                 TETC[1][im_no] = I2A.copy()
                 continue
-        elif ind == 0 and ccel != 1:
+        elif (ind == 0 or math.isnan(ind)) and ccel != 1:
             k += 1
             if k > thresh_next_cell:
                 break
@@ -198,6 +199,10 @@ all_obj = cal_allob1(ccel, TETC, rang)
 x_scale = 2
 y_scale = 250
 plt.imshow(all_obj, extent=[0, x_scale, 0, y_scale], aspect='auto')
+
+sio.savemat(os.path.join(sav_path, "art_py.mat"), {
+                'all_ob_py': all_obj
+            })
 cell_data = cal_celldata(all_obj, ccel) ## double check values
 
 k = 1
@@ -275,6 +280,8 @@ def replace_none_with_empty_array(data):
         return np.array([])
     else:
         return data
+    
+TETmasks = replace_none_with_empty_array(TETmasks)
 
 # Save results
 sio.savemat(sav_path + '_TET_Track.mat', {
