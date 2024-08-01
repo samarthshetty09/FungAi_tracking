@@ -59,9 +59,9 @@ for i in range(min(sorted_numbers), len(tet_masks)):
         tet_masks[i] = np.zeros_like(tet_masks[min(sorted_numbers)], dtype=np.uint16)
 
 # Remove shock-induced timepoints
-# for start, end in [shock_period]:
-#     for i in range(start-1, end):
-#         tet_masks[i] = None
+for start, end in [shock_period]:
+    for i in range(start-1, end):
+        tet_masks[i] = None
 
 start = -1
 for its in range(len(tet_masks)):
@@ -200,9 +200,9 @@ x_scale = 200
 y_scale = 4
 plt.imshow(all_obj, extent=[0, x_scale, 0, y_scale], aspect='auto')
 
-sio.savemat(os.path.join(sav_path, "art_py.mat"), {
-                'all_ob_py': all_obj
-            })
+# sio.savemat(os.path.join(sav_path, "art_py.mat"), {
+#                 'all_ob_py': all_obj
+#             })
 cell_data = cal_celldata(all_obj, ccel) ## double check values
 
 k = 1
