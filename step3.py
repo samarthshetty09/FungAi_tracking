@@ -18,14 +18,14 @@ import matplotlib.pyplot as plt
 
 # Define thresholds and parameters
 pos = 'Pos0_2'
-path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Python_Track_Test/Pos32_1_B/'
+path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Pos0_2/'
 # path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Python_Track_Test/MAT/'
 sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res/'
 shock_period = [122, 134]
 
 # Load image file names
-file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_MAT16_masks.tif')]
-file_numbers = [int(f.split('img_')[1].split('_Ph3_000_MAT16_masks.tif')[0]) for f in file_names]
+file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_MAT16_18_masks.tif')]
+file_numbers = [int(f.split('img_')[1].split('_Ph3_000_MAT16_18_masks.tif')[0]) for f in file_names]
 
 sorted_indices = np.argsort(file_numbers)
 sorted_numbers = np.array(file_numbers)[sorted_indices]
@@ -181,9 +181,9 @@ for iv in range(ccel):
         if all_obj[iv, shock_period[-1] + 1] != 0:
             for its in range(shock_period[-1] + 1, rang[-1] + 1):
                 if all_obj[iv, its] != -1:
-                    pix = np.where(MATC[0][its] == iv)
+                    pix = np.where(MATC[0][its] == iv + 1)
                     MATC[0][its][pix] = 0
-                    all_obj[iv, its] = np.sum(MATC[0][its] == iv)
+                    all_obj[iv, its] = np.sum(MATC[0][its] == iv + 1)
 
 cell_data = cal_celldata(all_obj, ccel)
 
@@ -200,7 +200,7 @@ if cell_artifacts:
     cell_artifacts = list(set(cell_artifacts))
     for iv in cell_artifacts:
         for its in rang3:
-            pix = np.where(MATC[0][its] == iv)
+            pix = np.where(MATC[0][its] == iv + 1)
             MATC[0][its][pix] = 0
 
 good_cells = sorted(set(all_ccel) - set(cell_artifacts))
@@ -221,20 +221,20 @@ for iv in range(ccel):
     a = np.where(tp_data[iv][0] > 10)[0]
     if len(a) > 0:
         if a[0] == len(tp_data[iv][0]):
-            pix = np.where(MATC[0][tp_data[iv][1][a[0] + 1]] == iv)
+            pix = np.where(MATC[0][tp_data[iv][1][a[0] + 1]] == iv + 1)
             MATC[0][tp_data[iv][1][a[0] + 1]][pix] = 0
         else:
             for its in range(np.where(all_obj[iv, :] > 0)[0][0], tp_data[iv][1][a[0] + 1] - 1):
-                pix = np.where(MATC[0][its] == iv)
+                pix = np.where(MATC[0][its] == iv + 1)
                 MATC[0][its][pix] = 0
 
 for iv in range(ccel):
     for its in range(np.where(all_obj[iv, :] > 0)[0][0] + 1, np.where(all_obj[iv, :] > 0)[0][-1]):
         if all_obj[iv, its] == 0:
             prev = np.where(all_obj[iv, :its] > 0)[0][-1]
-            all_obj[iv, its] = all_obj[iv, prev]
-            pix = np.where(MATC[0][prev] == iv)
-            MATC[0][its][pix] = iv
+            all_obj[iv, its] = (all_obj[iv, prev]).copy()
+            pix = np.where(MATC[0][prev] == iv + 1)
+            MATC[0][its][pix] = iv + 1
 
 all_obj = cal_allob(ccel, MATC, rang)
 cell_data = cal_celldata(all_obj, ccel)
@@ -257,10 +257,10 @@ mat_masks_original = replace_none_with_empty_array(mat_masks_original)
 sio.savemat(f'{sav_path}{pos}_sam_MAT_16_18_Track.mat', {
     "Matmasks": Matmasks,
     "no_obj": no_obj,
-    ##"all_obj": all_obj,
+    "all_obj": all_obj,
     "cell_data": cell_data,
     "rang": rang,
-    ##"rang3": rang3,
+    "rang3": rang3,
     "shock_period": shock_period,
     "mat_masks_original": mat_masks_original,
     "start": start
