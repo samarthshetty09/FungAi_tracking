@@ -23,7 +23,7 @@ path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Pos13_1_B/'
 sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res'
 
 # Load image file names
-file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_MAT15_masks.tif')]
+file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_TET_masks.tif')]
 file_numbers = np.zeros(len(file_names), dtype=int)
 
 # Extract file numbers
@@ -59,9 +59,9 @@ for i in range(min(sorted_numbers), len(tet_masks)):
         tet_masks[i] = np.zeros_like(tet_masks[min(sorted_numbers)], dtype=np.uint16)
 
 # Remove shock-induced timepoints
-for start, end in [shock_period]:
-    for i in range(start-1, end):
-        tet_masks[i] = None
+# for start, end in [shock_period]:
+#     for i in range(start-1, end):
+#         tet_masks[i] = None
 
 start = -1
 for its in range(len(tet_masks)):
@@ -169,7 +169,7 @@ while xx != -1:
             break
     ccel += 1
     rang2 = range(xx, len(tet_masks))
-    print(xx)
+    print(xx + 1)
 
 
 ccel -= 1  # number of cells tracked
@@ -188,7 +188,7 @@ def cal_allob1(ccel, TETC, rang):
 
     for iv in range(ccel):  # Adjusted to 1-based index
         for its in rang:
-            if TETC[0][its] is not None and np.sum(TETC[0][its]) > 0:  # Check if the array is not None and not empty
+            if TETC[0][its] is not None: #and np.sum(TETC[0][its]) > 0:  # Check if the array is not None and not empty
                 all_obj[iv, its] = np.sum(TETC[0][its] == iv + 1)  # Adjusted for 1-based index logic
             else:
                 all_obj[iv, its] = -1
@@ -196,8 +196,8 @@ def cal_allob1(ccel, TETC, rang):
     return all_obj
 
 all_obj = cal_allob1(ccel, TETC, rang)
-x_scale = 2
-y_scale = 250
+x_scale = 200
+y_scale = 4
 plt.imshow(all_obj, extent=[0, x_scale, 0, y_scale], aspect='auto')
 
 sio.savemat(os.path.join(sav_path, "art_py.mat"), {
@@ -253,7 +253,7 @@ def cal_allob2(ccel, TETC, rang):
 
     for iv in range(ccel):  # Adjusted to 1-based index
         for its in rang:
-            if TETC[its] is not None and np.sum(TETC[its]) > 0:  # Check if the array is not None and not empty
+            if TETC[its] is not None: #and np.sum(TETC[its]) > 0:  # Check if the array is not None and not empty
                 all_obj[iv, its] = np.sum(TETC[its] == iv + 1)  # Adjusted for 1-based index logic
             else:
                 all_obj[iv, its] = -1
@@ -284,15 +284,15 @@ def replace_none_with_empty_array(data):
 TETmasks = replace_none_with_empty_array(TETmasks)
 
 # Save results
-sio.savemat(sav_path + '_TET_Track.mat', {
-    'start': start,
-    'TET_Size': TET_Size,
-    'TET_obj': TET_obj,
-    'TET_exists': TET_exists,
-    'TETmasks': TETmasks,
-    'shock_period': shock_period,
-    'thresh': thresh,
-    'thresh_next_cell': thresh_next_cell,
-    'thresh_percent': thresh_percent,
-    'tet_masks_exists_tp': tet_masks_exists_tp
+sio.savemat(sav_path + '_TET_Track_py.mat', {
+    'start_py': start,
+    'TET_Size_py': TET_Size,
+    'TET_obj_py': TET_obj,
+    'TET_exists_py': TET_exists,
+    'TETmasks_py': TETmasks,
+    'shock_period_py': shock_period,
+    'thresh_py': thresh,
+    'thresh_next_cell_py': thresh_next_cell,
+    'thresh_percent_py': thresh_percent,
+    'tet_masks_exists_tp_py': tet_masks_exists_tp
 }, do_compression=True)
