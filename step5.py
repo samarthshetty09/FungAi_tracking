@@ -231,8 +231,8 @@ path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Python_Track_Te
 sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res/'
 art_mask_path = path
 file_list = sorted(glob(os.path.join(art_mask_path, '*_Ph3_000_cp_masks.tif')))
+# file_list = file_list[:25]
 mm = range(len(file_list))  # time points to track
-
 # Load the first mask that begins the indexing for all the cells; IS1 is updated to most recently processed tracked mask at the end of it0
 # Start tracking at first timepoint
 IS1 = io.imread(file_list[0]).astype(np.uint16)
@@ -398,27 +398,30 @@ for it4 in range(len(file_list)):
 """
 Vizualize All Ob
 """
-obj = np.unique(masks)
-no_obj = int(np.max(obj))
-im_no = masks.shape[2]
-all_ob = np.zeros((no_obj, im_no))
+# obj = np.unique(masks)
+# no_obj = int(np.max(obj))
+# im_no = masks.shape[2]
+# all_ob = np.zeros((no_obj, im_no))
 
-tic = time.time()
+# tic = time.time()
 
-for ccell in range(1, no_obj + 1):
-    Maa = (masks == ccell)
+# for ccell in range(1, no_obj + 1):
+#     Maa = (masks == ccell)
 
-    for i in range(im_no):
-        pix = np.sum(Maa[:, :, i])
-        all_ob[ccell-1, i] = pix
+#     for i in range(im_no):
+#         pix = np.sum(Maa[:, :, i])
+#         all_ob[ccell-1, i] = pix
 
-plt.figure()
-plt.imshow(all_ob, aspect='auto', cmap='viridis')
-plt.title("all_obj")
-plt.xlabel("Time")
-plt.ylabel("Cells")
-plt.show()
+# plt.figure()
+# plt.imshow(all_ob, aspect='auto', cmap='viridis')
+# plt.title("all_obj")
+# plt.xlabel("Time")
+# plt.ylabel("Cells")
+# plt.show()
 
+# sio.savemat('st3_allob.mat', {
+#     "all_obj_py": all_ob
+# })
 
 """
 Tracks as a tensor
@@ -438,14 +441,14 @@ for itt3 in range(len(ccell2)):  # cells
     pix3 = np.where(masks == ccell2[itt3])
     Mask2[pix3] = itt3 + 1  # ID starts from 1
 
-for it4 in range(1, len(file_list)):
-    plt.imshow(Mask2[:, :, it4])
+# for it4 in range(1, len(file_list)):
+#     plt.imshow(Mask2[:, :, it4])
 
 
-save_path = os.path.join(sav_path, 'Mask2_py.mat')
-savemat(save_path, {
-    'Mask2_py': Mask2,
-})
+# save_path = os.path.join(sav_path, 'Mask2_py.mat')
+# savemat(save_path, {
+#     'Mask2_py': Mask2,
+# })
 """
 Get Cell Presence
 """
@@ -475,7 +478,6 @@ plt.ylabel("Cells")
 plt.show()
 
 # right
-
 tic = time.time()
 for cel in range(1, no_obj1+1):
     tp_im2 = np.diff(tp_im[cel-1, :])
@@ -486,18 +488,19 @@ for cel in range(1, no_obj1+1):
     if len(tp1) == 1 and len(tp2) == 1 and maxp != 0:  # has one interruption
         for itx in range(tp1[0], numbM):
             tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-            Mask3[:, :, itx] = tp3
+            Mask3[:, :, itx] = tp3.copy()
         no_obj1 += A
     
     elif len(tp1) == 1 and len(tp2) == 1 and maxp == 0:  # has one interruption
         pass
     
     elif len(tp1) == len(tp2) + 1 and maxp != 0:
-        tp2 = np.append(tp2, numbM)
+        tp2 = np.append(tp2, numbM-1)
+
         for itb in range(1, len(tp1)):  # starts at 2 because the first cell index remains unchanged
-            for itx in range(tp1[itb] + 1, tp2[itb]):
+            for itx in range(tp1[itb] + 1, tp2[itb] + 1):
                 tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-                Mask3[:, :, itx] = tp3
+                Mask3[:, :, itx] = tp3.copy()
             no_obj1 += A
     
     elif len(tp2) == 0 or len(tp1) == 0:  # it's a normal cell, it's born and stays until the end
@@ -505,23 +508,23 @@ for cel in range(1, no_obj1+1):
     
     elif len(tp1) == len(tp2):
         if tp1[0] > tp2[0]:
-            tp2 = np.append(tp2, numbM)
+            tp2 = np.append(tp2, numbM-1) #check this throughly
             for itb in range(len(tp1)):
-                for itx in range(tp1[itb] + 1, tp2[itb + 1]):
-                    tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-                    Mask3[:, :, itx] = tp3
+                for itx in range(tp1[itb]+1, tp2[itb + 1] + 1):
+                    tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A) #+1 here
+                    Mask3[:, :, itx] = tp3.copy()    
                 no_obj1 += A
         elif tp1[0] < tp2[0]:
-            for itb in range(1, len(tp1)):
-                for itx in range(tp1[itb] + 1, tp2[itb]):
+            for itb in range(1, len(tp1)): 
+                for itx in range(tp1[itb] + 1, tp2[itb] + 1):  # Inclusive range
                     tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-                    Mask3[:, :, itx] = tp3
+                    Mask3[:, :, itx] = tp3.copy()
                 no_obj1 += A
         elif len(tp2) > 1:
             for itb in range(1, len(tp1)):
-                for itx in range(tp1[itb] + 1, tp2[itb]):
+                for itx in range(tp1[itb] + 1, tp2[itb] + 1):
                     tp3 = OAM_23121_tp3(Mask3[:, :, itx], cel, no_obj1, A)
-                    Mask3[:, :, itx] = tp3
+                    Mask3[:, :, itx] = tp3.copy()    
                 no_obj1 += A
 toc = time.time()
 print(f'Elapsed time is {toc - tic} seconds.')
@@ -550,11 +553,12 @@ plt.xlabel("Time")
 plt.ylabel("Cells")
 plt.show()
 
-# save_path = os.path.join(sav_path, 'tp_im_py.mat')
-# savemat(save_path, {
-#     'tp_im_py': tp_im,
-#     'obj_py':obj
-# })
+save_path = os.path.join(sav_path, 'tp_im_py.mat')
+savemat(save_path, {
+    'tp_im_py': tp_im,
+})
+
+
 
 #done
 
@@ -570,8 +574,13 @@ for it05 in range(tp_im.shape[0]):
 
 goodcells = np.setdiff1d(np.arange(1, tp_im.shape[0] + 1), cell_artifacts[cell_artifacts != 0])  # Identify good cells
 
-
 # display tp_im
+plt.figure()
+plt.imshow(tp_im, aspect='auto')
+plt.title("Cell Presence Over Time")
+plt.xlabel("Time")
+plt.ylabel("Cells")
+plt.show()
 
 # Tracks as a tensor 2
 im_no = Mask3.shape[2]
@@ -597,14 +606,18 @@ for cel in range(1, no_obj1+1):
         if Ma[:, :, ih].sum() != 0:
             tp_im[cel-1, ih] = 1
 
-# plt.figure()
-# plt.imshow(tp_im, aspect='auto')
-# plt.title("Cell Presence Over Time")
-# plt.xlabel("Time")
-# plt.ylabel("Cells")
-# plt.show()
+plt.figure()
+plt.imshow(tp_im, aspect='auto')
+plt.title("Cell Presence Over Time")
+plt.xlabel("Time")
+plt.ylabel("Cells")
+plt.show()
 
-#done
+sio.savemat('st3_allob.mat', {
+    'tp_im_py': tp_im
+})
+
+#Done!!
 
 # cell_exists0 = np.zeros((2, tp_im.shape[0]))
 
@@ -619,15 +632,15 @@ for cel in range(1, no_obj1+1):
 cell_exists0 = np.zeros((2, tp_im.shape[0]))
 
 # Calculate the first and last detection
-for itt2 in range(tp_im.shape[0]):
-    first_detection = np.argmax(tp_im[itt2, :] != 0)
-    last_detection = tp_im.shape[1] - np.argmax(tp_im[itt2, ::-1] != 0) - 1
-    cell_exists0[:, itt2] = [first_detection, last_detection]
+# for itt2 in range(tp_im.shape[0]):
+#     first_detection = np.argmax(tp_im[itt2, :] != 0)
+#     last_detection = tp_im.shape[1] - np.argmax(tp_im[itt2, ::-1] != 0) - 1
+#     cell_exists0[:, itt2] = [first_detection, last_detection]
 
-# Sort based on the first detection
-sortOrder = np.argsort(cell_exists0[0, :]) #check the sort !TODO:
-sorted_order = sorted(sortOrder)    
-cell_exists = cell_exists0[:, sortOrder]
+# # # Sort based on the first detection
+# sortOrder = np.argsort(cell_exists0[0, :]) #check the sort !TODO:
+# # sorted_order = sortOrder.copy()   
+# cell_exists = cell_exists0[:, sortOrder]
 # sortOrder = sorted(sortOrder)
 # sortOrder.append(len(sortOrder))
 # sortOrder = sortOrder[1:]
@@ -646,12 +659,50 @@ cell_exists = cell_exists0[:, sortOrder]
 
 # cell_exists = cell_exists0[:, sortOrder]
 
+######
+for itt2 in range(tp_im.shape[0]):
+    # Find indices of non-zero elements
+    non_zero_indices = np.where(tp_im[itt2, :] != 0)[0]
+    
+    # If there are non-zero elements, get first and last
+    if non_zero_indices.size > 0:
+        first_non_zero = non_zero_indices[0]
+        last_non_zero = non_zero_indices[-1]
+    else:
+        first_non_zero = -1  # Or any placeholder value for rows without non-zero elements
+        last_non_zero = -1   # Or any placeholder value for rows without non-zero elements
+    
+    cell_exists0[:, itt2] = [first_non_zero, last_non_zero]
+
+# # Sort by the first non-zero index
+# sortOrder = np.argsort(cell_exists0[0,:])
+
+sortOrder = sorted(range(cell_exists0.shape[1]), key=lambda i: cell_exists0[0, i])
+########
+# for x in range(len(cell_exists0[0])):
+#     cell_exists0[0][x] += 1
+# for x in range(len(cell_exists0[1])):
+#     cell_exists0[1][x] += 1
+    
+    
+sio.savemat('st3_allob.mat', {
+    'cell_exists0_py': cell_exists0,
+    'sortOrder_py': sortOrder
+})
+
+# for x in range(len(sortOrder)):
+#     sortOrder[x] += 1
+
+# Reorder the array based on the sorted indices
+cell_exists = cell_exists0[:, sortOrder]
+
+
 # Re-label
 Mask6 = np.zeros_like(Mask5)
     
 
 for itt3 in range(len(sortOrder)):
-    pix3 = (Mask5 == sortOrder[itt3]+1)  # here
+    pix3 = np.where(Mask5 == sortOrder[itt3] + 1)  # here
     Mask6[pix3] = itt3 + 1# reassign
 
 # Get cell presence 3
@@ -665,8 +716,6 @@ tic = time.time()
 tp_im = np.zeros((no_obj1, im_no))
 for cel in range(1, no_obj1 + 1):
     tp_im[cel - 1, :] = ((Mask7 == cel).sum(axis=(0, 1)) != 0).astype(int)
-    if cel > 1 and np.sum(tp_im[cel - 1]) == 0:
-            tp_im[cel - 1] = tp_im[cel - 2]
 toc = time.time()
 print(f'Elapsed time is {toc - tic} seconds.')
 
@@ -681,17 +730,24 @@ plt.show()
 # Calculate size
 obj = np.unique(Mask7)
 no_obj = int(np.max(obj))
-im_no = Mask3.shape[2]
+im_no = Mask7.shape[2]
 all_ob = np.zeros((no_obj, im_no))
+
 
 tic = time.time()
 for ccell in range(1, no_obj + 1):
-    all_ob[ccell - 1, :] = np.sum(Mask7 == ccell + 1, axis=(0, 1))
-    if ccell > 1 and not np.any(all_ob[ccell - 1]):
-        all_ob[ccell - 1] = all_ob[ccell - 2]
-toc = time.time()
+    Maa = (Mask7 == ccell)
 
+    for i in range(im_no):
+        pix = np.sum(Maa[:, :, i])
+        all_ob[ccell-1, i] = pix
+toc = time.time()
 print(f'Elapsed time is {toc - tic} seconds.')
+
+sio.savemat('st3_allob.mat', {
+    'all_ob_py': all_ob,
+    'Mask7_py': Mask7
+})
 
 plt.figure()
 plt.imshow(all_ob, aspect='auto', cmap='viridis')
