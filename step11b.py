@@ -206,19 +206,20 @@ if no_obj != 0:  # positive number of MAT Detections
                 if isinstance(descendants_data[i][j], np.ndarray):
                     descendants_data[i][j] = descendants_data[i][j].tolist()
     
+    for i, element in enumerate(descendants_data):
+        if not isinstance(element, np.ndarray):
+            raise TypeError(f"Element at index {i} is not a numpy array")
+
+    # Convert list of numpy arrays to a numpy array with dtype=object
+    descendants_data_array = np.empty(len(descendants_data), dtype=object)
+    for i, array in enumerate(descendants_data):
+        descendants_data_array[i] = array
     savemat_data = {
         'I3': I3,
-        'descendants_data': descendants_data,
+        'descendants_data': descendants_data_array,
         'alive_tets': alive_tets,
         'TET_obj': TET_obj,
     }
         
-
-    sio.savemat(os.path.join(sav_path, f'{pos}_final_descendants.mat'), {
-        "I3": I3,
-        "descendants_data": descendants_data,
-        "alive_tets": alive_tets,
-        "TET_obj": TET_obj
-    })
     
     sio.savemat(os.path.join(sav_path, f'{pos}_final_descendants.mat'), savemat_data, do_compression=True, oned_as='row')
