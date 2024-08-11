@@ -36,20 +36,24 @@ def resolve_h5py_reference(data, f):
 # Load tet track
 tet_track_path = path
 file_list_tet = [f for f in os.listdir(tet_track_path) if '_TET_Track_DS' in f]
+file_list_tet = sorted(file_list_tet)
 tet_track = load_mat(os.path.join(path, file_list_tet[0]))
 
 # Load tet IDs
 file_list = [f for f in os.listdir(tet_track_path) if '_TET_ID' in f]
+file_list = sorted(file_list)
 tet_ids = load_mat(os.path.join(path, file_list[0]))
 
 # Load descendants information
 desc_path = path
 file_list_desc = [f for f in os.listdir(desc_path) if '_descendants_new_art' in f]
+file_list_desc = sorted(file_list_desc)
 descendants = load_mat(os.path.join(path, file_list_desc[0]))
 
 # Load mat track
 mat_track_path = path
 file_list = [f for f in os.listdir(mat_track_path) if '_MAT_16_18_Track1_DS' in f]
+file_list = sorted(file_list)
 mat_track = load_mat(os.path.join(path, file_list[0]))
 
     
@@ -118,17 +122,18 @@ if no_obj != 0:  # positive number of MAT Detections
     region = []
     amt = []
     k = 0
+    # TODO! remove hardcode for int_range check git changes before committing
+    # arr = [1]
+    # for iv in arr:
     for iv in range(int(no_obj)):
         I12 = np.zeros(MTrack[min(int_range)].shape, dtype=np.uint16)
         kx = 0
         for its in int_range:
-            I11 = (MTrack[its] == iv).astype(np.uint16)
+            I11 = (MTrack[its] == iv+1).astype(np.uint16)
             
-# =============================================================================
-#             plt.figure()
-#             plt.imshow(I11, cmap='grey')
-#             plt.show()
-# =============================================================================
+            # plt.figure()
+            # plt.imshow(I11, cmap='grey')
+            # plt.show()
             
             if np.sum(I11) > 0:
                 kx += 1
@@ -137,6 +142,11 @@ if no_obj != 0:  # positive number of MAT Detections
             I12 += I11
 
         I13 = (I12 > 0).astype(np.uint16) * I3.astype(np.uint16)
+        
+        plt.figure()
+        plt.imshow(I13, cmap='grey')
+        plt.show()
+        
         
         I13 = I13.T
         pix = np.unique(I13)
@@ -189,9 +199,20 @@ if no_obj != 0:  # positive number of MAT Detections
         for ixx in range(len(cell_arrays)):
             if cell_arrays[ixx] is not None:
                 tet_no = np.where(TET_ind[:,1] == ixx)[0]
-                descendants_data.append(cell_arrays[ixx][tet_no]) 
-                tet_no = np.where(TET_ind[:, 1] == ixx)[0]
-                descendants_data[tet_no, 3] = cell_arrays[ixx]
+                descendants_data.append(cell_arrays[ixx][tet_no])
+                
+        for i in range(len(descendants_data)):
+            for j in range(len(descendants_data[i])):
+                if isinstance(descendants_data[i][j], np.ndarray):
+                    descendants_data[i][j] = descendants_data[i][j].tolist()
+    
+    savemat_data = {
+        'I3': I3,
+        'descendants_data': descendants_data,
+        'alive_tets': alive_tets,
+        'TET_obj': TET_obj,
+    }
+        
 
     sio.savemat(os.path.join(sav_path, f'{pos}_final_descendants.mat'), {
         "I3": I3,
@@ -199,3 +220,5 @@ if no_obj != 0:  # positive number of MAT Detections
         "alive_tets": alive_tets,
         "TET_obj": TET_obj
     })
+    
+    sio.savemat(os.path.join(sav_path, f'{pos}_final_descendants.mat'), savemat_data, do_compression=True, oned_as='row')

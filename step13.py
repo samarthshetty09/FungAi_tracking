@@ -31,19 +31,23 @@ def load_mat_file(filename):
 
 # Load TET IDs
 file_list = [f for f in os.listdir(path) if f.endswith('_TET_ID_art_track.mat')]
+file_list = sorted(file_list)
 TET_ID_data = load_mat_file(os.path.join(path, file_list[0]))
 
 # Load art track
 file_list = [f for f in os.listdir(path) if f.endswith('_ART_Track1_DS.mat')]
+file_list = sorted(file_list)
 art_track_data = load_mat_file(os.path.join(path, file_list[0]))
 
 # Load tet track
 file_list = [f for f in os.listdir(path) if f.endswith('_TET_Track_DS.mat')]
+file_list = sorted(file_list)
 tet_data = load_mat_file(os.path.join(path, file_list[0]))
 
 # Load descendants information
 desc_path = path
 file_list = [f for f in os.listdir(desc_path) if f.endswith('_final_descendants.mat')]
+file_list = sorted(file_list)
 desc_data = load_mat_file(os.path.join(path, file_list[0]))
 
 alive_tets = desc_data['alive_tets'].flatten()
@@ -71,4 +75,7 @@ for iv in alive_tets:
         germination_point[iv] = k1  # If value = 0, then tet is dead
 
 # Save the results
-np.savez(os.path.join(sav_path, f'{pos}_germination_point.npz'), germination_point=germination_point, alive_tets=alive_tets)
+sio.savemat(f'{sav_path}{pos}_germination_point.mat', {
+    "germination_point":germination_point,
+    "alive_tets":alive_tets
+})
