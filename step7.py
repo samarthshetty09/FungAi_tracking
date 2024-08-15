@@ -178,7 +178,7 @@ if any(os.path.isfile(os.path.join(mat_track_path, f)) for f in os.listdir(mat_t
                         if val_avg <= 0.4:
                             final_indx_remov = np.setdiff1d(final_indx_remov, itt1)
                 
-                for its in range(int(mat['cell_data'][0, iv]), len(Mask3)):
+                for its in range(int(mat['cell_data'][0, iv]) - 1, len(Mask3)):
                     for itt in final_indx_remov:
                         Mask3[its][Mask3[its] == itt] = 0
             print(iv)
