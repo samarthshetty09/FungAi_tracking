@@ -15,17 +15,25 @@ from functions.SR_240222_cal_celldata import cal_celldata
 from scipy.stats import mode
 import matplotlib.pyplot as plt
 
+def replace_none_with_empty_array(data):
+    if isinstance(data, list):
+        return [replace_none_with_empty_array(item) for item in data]
+    elif data is None:
+        return np.array([])
+    else:
+        return data
+
 
 # Define thresholds and parameters
 pos = 'Pos0_2'
-path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Pos0_2/'
+path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Pos13_1_B/'
 # path = f'/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/Python_Track_Test/MAT/'
 sav_path = '/Users/samarth/Documents/MATLAB/Full_Life_Cycle_tracking/saved_res/py_res/'
 shock_period = [122, 134]
 
 # Load image file names
-file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_MAT16_18_masks.tif')]
-file_numbers = [int(f.split('img_')[1].split('_Ph3_000_MAT16_18_masks.tif')[0]) for f in file_names]
+file_names = [f for f in os.listdir(path) if f.endswith('_Ph3_000_MAT16_masks.tif')]
+file_numbers = [int(f.split('img_')[1].split('_Ph3_000_MAT16_masks.tif')[0]) for f in file_names]
 
 sorted_indices = np.argsort(file_numbers)
 sorted_numbers = np.array(file_numbers)[sorted_indices]
@@ -42,9 +50,9 @@ for i in range(min(sorted_numbers), len(mat_masks)):
 
 # Remove shock-induced timepoints
 mat_masks_original = mat_masks.copy()
-for start, end in [shock_period]:
-    for i in range(start-1, end):
-        mat_masks[i] = None
+# for start, end in [shock_period]:
+#     for i in range(start-1, end):
+#         mat_masks[i] = None
 
 start = -1
 for its in range(len(mat_masks)):
@@ -163,10 +171,10 @@ ccel -= 1  # number of cells tracked
 
 # Removing the shock-induced points from rang
 rang3 = list(rang)
-for start, end in [shock_period]:
-    for i in range(start-1, end):
-        if i in rang3:
-            rang3.remove(i)
+# for start, end in [shock_period]:
+#     for i in range(start-1, end):
+#         if i in rang3:
+#             rang3.remove(i)
 
 # Correction Code
 all_obj = cal_allob(ccel, MATC, rang)
@@ -176,16 +184,16 @@ sio.savemat('st3_allob.mat', {
     "all_obj_py": all_obj
 })
 
-for iv in range(ccel):
-    if np.any(all_obj[iv, min(rang):shock_period[-1]] > 0):
-        if all_obj[iv, shock_period[-1] + 1] != 0:
-            for its in range(shock_period[-1] + 1, rang[-1] + 1):
-                if all_obj[iv, its] != -1:
-                    pix = np.where(MATC[0][its] == iv + 1)
-                    MATC[0][its][pix] = 0
-                    all_obj[iv, its] = np.sum(MATC[0][its] == iv + 1)
+# for iv in range(ccel):
+#     if np.any(all_obj[iv, min(rang):shock_period[-1]] > 0):
+#         if all_obj[iv, shock_period[-1] + 1] != 0:
+#             for its in range(shock_period[-1] + 1, rang[-1] + 1):
+#                 if all_obj[iv, its] != -1:
+#                     pix = np.where(MATC[0][its] == iv + 1)
+#                     MATC[0][its][pix] = 0
+#                     all_obj[iv, its] = np.sum(MATC[0][its] == iv + 1)
 
-cell_data = cal_celldata(all_obj, ccel)
+# cell_data = cal_celldata(all_obj, ccel)
 
 k = 1
 cell_artifacts = []
@@ -214,6 +222,8 @@ ccel = len(good_cells)
 all_obj = cal_allob(ccel, MATC, rang)
 cell_data = cal_celldata(all_obj, ccel)
 
+# MATC = replace_none_with_empty_array(MATC)
+
 for iv in range(ccel):
     tp_data = {
         iv: [np.diff(np.where(all_obj[iv, :] > 0)[0]), np.where(all_obj[iv, :] > 0)[0]]
@@ -241,15 +251,12 @@ cell_data = cal_celldata(all_obj, ccel)
 
 no_obj = ccel
 # in matlab the array size is 777 filled with values after 240th index, try increasing?
-Matmasks = [MATC[0][i] for i in rang]
+# Matmasks = [MATC[0][i] for i in rang]
 
-def replace_none_with_empty_array(data):
-    if isinstance(data, list):
-        return [replace_none_with_empty_array(item) for item in data]
-    elif data is None:
-        return np.array([])
-    else:
-        return data
+rang3=range(len(MATC[0]))
+Matmasks = [MATC[0][i] for i in rang3]
+
+
     
 Matmasks = replace_none_with_empty_array(Matmasks)
 mat_masks_original = replace_none_with_empty_array(mat_masks_original)
