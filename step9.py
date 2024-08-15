@@ -71,10 +71,12 @@ shock_period = mat['shock_period']
 
 
 for iv in range(int(mat['no_obj'][0, 0])):
+    # iv = 0
     tp_mat_start = int(mat['cell_data'][0, iv])  # First appearance of mating event "iv"
     M1 = MTrack[tp_mat_start-1]  # Mat Track at tp_mat_start
-    for its in range(tp_mat_start - 2, int(mat['shock_period'][1, 0]), -1):  # Loop through time from 1 tp before mating to one time point after shock
-        A1 = Mask3[its].astype(float)
+    for its in range(tp_mat_start - 1, int(mat['shock_period'][1, 0]), -1):  # Loop through time from 1 tp before mating to one time point after shock
+        # its = 154
+        A1 = Mask3[its].astype(float).T
         
         
         # plt.figure()
@@ -84,7 +86,7 @@ for iv in range(int(mat['no_obj'][0, 0])):
     
         
         
-        M2 = (M1 == iv + 1).astype(float)
+        M2 = (M1 == iv + 1).astype(float).T
         
         Im1 = (M2 > threshold_otsu(M2)).astype(float)
         Im2 = thin(Im1, 10).astype(float)
@@ -111,15 +113,15 @@ for iv in range(int(mat['no_obj'][0, 0])):
             if (2/8) <= r <= (8/2):  # 4/6 to 9/6
                 gamete[0, iv] = pix2[0]
                 gamete[1, iv] = pix2[1]
-                gamete[2, iv] = its + 1
+                gamete[2, iv] = its
 
 for iv in range(int(mat['no_obj'][0, 0])):
     if gamete[0, iv] == 0 and gamete[1, iv] == 0:
         tp_mat_start = int(mat['cell_data'][iv, 0])  # First appearance of mating event "iv"
         M1 = MTrack[tp_mat_start-1]  # Mat Track at tp_mat_start
-        for its in range(tp_mat_start - 2, int(mat['shock_period'][1, 0]), -1):  # Loop through time from 1 tp before mating to one time point after shock
-            A1 = Mask3[its].astype(float)
-            M2 = (M1 == iv + 1).astype(float)
+        for its in range(tp_mat_start - 1, int(mat['shock_period'][1, 0]), -1):  # Loop through time from 1 tp before mating to one time point after shock
+            A1 = Mask3[its].astype(float).T
+            M2 = (M1 == iv + 1).astype(float).T
             
             Im1 = (M2 > threshold_otsu(M2)).astype(float)
             Im2 = thin(Im1, 10).astype(float)
@@ -134,6 +136,6 @@ for iv in range(int(mat['no_obj'][0, 0])):
             
             if pix2.size == 1:  # captures ascus mating
                 gamete[0, iv] = pix2[0]
-                gamete[2, iv] = its + 1
+                gamete[2, iv] = its
 
 sio.savemat(os.path.join(sav_path, f'{pos}_gametes.mat'), {"gamete": gamete}, do_compression=True)
